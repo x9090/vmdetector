@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type='text/xsl' href='_UpgradeReport_Files/UpgradeReport.xslt'?><UpgradeLog>
+<Properties><Property Name="Solution" Value="VmDetector">
+</Property><Property Name="Solution File" Value="C:\Users\x9090\Documents\Visual Studio 2008\Projects\VmDetector\VmDetector.sln">
+</Property><Property Name="Date" Value="Wednesday, April 18, 2012">
+</Property><Property Name="Time" Value="0:38 AM">
+</Property></Properties><Event ErrorLevel="0" Project="VmDetector" Source="VmDetector\VmDetector.vcproj" Description="Converting project file 'C:\Users\x9090\Documents\Visual Studio 2008\Projects\VmDetector\VmDetector\VmDetector.vcproj'.">
+</Event><Event ErrorLevel="1" Project="VmDetector" Source="VmDetector\VmDetector.vcproj" Description="VCWebServiceProxyGeneratorTool is no longer supported. The tool has been removed from your project settings.">
+</Event><Event ErrorLevel="0" Project="VmDetector" Source="VmDetector\VmDetector.vcproj" Description="Done converting to new project file 'C:\Users\x9090\Documents\Visual Studio 2008\Projects\VmDetector\VmDetector\VmDetector.vcxproj'.">
+</Event><Event ErrorLevel="3" Project="VmDetector" Source="VmDetector\VmDetector.vcproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="" Source="VmDetector.sln" Description="Solution converted successfully">
+</Event><Event ErrorLevel="3" Project="" Source="VmDetector.sln" Description="Converted">
+</Event></UpgradeLog>
