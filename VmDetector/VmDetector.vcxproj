@@ -84,11 +84,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="chkcpuid.c" />
+    <ClCompile Include="chkrtdsc.c" />
     <ClCompile Include="chkvmhdd.c" />
     <ClCompile Include="vmdetector.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="chkcpuid.h" />
+    <ClInclude Include="chkrdtsc.h" />
     <ClInclude Include="chkvmhdd.h" />
     <ClInclude Include="vmdetector.h" />
   </ItemGroup>

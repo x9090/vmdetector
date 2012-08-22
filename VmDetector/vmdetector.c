@@ -46,6 +46,23 @@ int main(int args, WCHAR *argv[])
 	}
 	i++;
 
+	DebugBreak();
+	wprintf(L"[%d] Checking RTDSC: ", i);
+	if (CheckRTDSC())
+	{
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED|FOREGROUND_INTENSITY);
+		wprintf(L"Failed \n");
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
+		arrFixable[j++] = i;
+	}
+	else 
+	{
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN|FOREGROUND_INTENSITY);
+		wprintf(L"Passed\n");
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
+	}
+	i++;
+
 	wprintf(L"[%d] Checking \"SYSTEM\\CurrentControlSet\\Services\\Disk\\Enum\": ", i);
 	if (CheckVmDiskReg())
 	{
@@ -117,7 +134,52 @@ int main(int args, WCHAR *argv[])
 
 				CloseHandle(hDevObj);
 				break;
+
 			case 3: // Item 3
+				DebugBreak();
+				wprintf(L"[+] Hooking RDTSC interrupt handler...");
+				dwResult = FALSE;
+				hDevObj = CreateFile(
+					L"\\\\.\\VmDetectorSys", 
+					GENERIC_READ|GENERIC_WRITE, 
+					FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, 
+					OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+				
+				// Set RDTSC to constant value
+				if (!DeviceIoControl(
+					hDevObj, 
+					IOCTL_RDTSCEMU_METHOD_ALWAYS_CONST, 
+					&g_RDTSC_CONSTANT, sizeof(g_RDTSC_CONSTANT), 
+					&dwResult, sizeof(dwResult), 
+					&dwBytesReturned, 
+					NULL)) wprintf(L"\n[-] Failed in operation IOCTL_RDTSCEMU_METHOD_ALWAYS_CONST. (0x%08x)", GetLastError());
+
+				// Send hook command to VMDetecctorSys
+				if (!DeviceIoControl(
+					hDevObj, 
+					IOCTL_VMDETECTORSYS_RTDSC_HOOK, 
+					NULL, 0, 
+					&dwResult, sizeof(dwResult), 
+					&dwBytesReturned, 
+					NULL)) wprintf(L"\n[-] Failed in operation IOCTL_VMDETECTORSYS_RTDSC_HOOK. (0x%08x)", GetLastError());
+
+				if (dwResult)
+				{
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN|FOREGROUND_INTENSITY);
+					wprintf(L" Succeeded\n");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
+				}
+				else
+				{
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED|FOREGROUND_INTENSITY);
+					wprintf(L" Failed\n");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
+				}
+
+				CloseHandle(hDevObj);
+				break;
+
+			case 4: // Item 4
 				wprintf(L"[+] Patching key \"SYSTEM\\CurrentControlSet\\Services\\Disk\\Enum\"...");
 				dwResult = FALSE;
 				hDevObj = CreateFile(
@@ -153,9 +215,16 @@ int main(int args, WCHAR *argv[])
 		}
 		k++;
 
-		if (k >= j)
+		// We can't stop the driver as we hook TSD interrupt handler in IDT => VMDetectorSys!hookstub
+		/* kd> !idt 0xd
+
+		   Dumping IDT:
+
+		   0d:	f4761610 VmDetectorSys!hookStub
+		*/
+		/*if (k >= j)
 			if (!StopVmDetectorDriver())
-				printf("[-] Failed to stop driver. (0x%08x)\n", GetLastError());
+				printf("[-] Failed to stop driver. (0x%08x)\n", GetLastError());*/
 	}
 
 

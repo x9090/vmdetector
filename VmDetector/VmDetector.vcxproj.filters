@@ -24,6 +24,9 @@
     <ClCompile Include="vmdetector.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="chkrtdsc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="chkcpuid.h">
@@ -33,6 +36,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="vmdetector.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="chkrdtsc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

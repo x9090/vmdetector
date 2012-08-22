@@ -67,7 +67,7 @@ CHAR *GetRegistryValueData(RegistryKey Key, CHAR *SubKey, CHAR *Value, DWORD *ty
 
 }
 
-BOOL CheckStorageProperty()
+BOOLEAN CheckStorageProperty()
 {
 	HANDLE hPhysicalDrv = NULL;
 	int j = 0,k = 0;
