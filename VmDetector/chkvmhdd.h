@@ -25,4 +25,5 @@
 BOOLEAN CheckStorageProperty();
 BOOLEAN CheckVmIdeReg();
 BOOLEAN CheckVmDiskReg();
-
+BOOLEAN CheckVmPartMgrReg();
+BOOLEAN PatchVmIdeReg();
