@@ -54,7 +54,7 @@
       <PrecompiledHeader>
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -67,7 +67,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeader>
       </PrecompiledHeader>
@@ -84,15 +84,30 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="chkcpuid.c" />
+    <ClCompile Include="chkreg.c" />
     <ClCompile Include="chkrtdsc.c" />
-    <ClCompile Include="chkvmhdd.c" />
+    <ClCompile Include="dbgprint.c" />
+    <ClCompile Include="readconfig.c" />
+    <ClCompile Include="utils.c" />
     <ClCompile Include="vmdetector.c" />
+    <ClCompile Include="wmicom.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="chkcpuid.h" />
     <ClInclude Include="chkrdtsc.h" />
-    <ClInclude Include="chkvmhdd.h" />
+    <ClInclude Include="chkreg.h" />
+    <ClInclude Include="dbgprint.h" />
+    <ClInclude Include="readconfig.h" />
+    <ClInclude Include="utils.h" />
     <ClInclude Include="vmdetector.h" />
+    <ClInclude Include="wmicom.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

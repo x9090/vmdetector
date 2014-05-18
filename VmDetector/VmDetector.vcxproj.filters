@@ -18,13 +18,25 @@
     <ClCompile Include="chkcpuid.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="chkvmhdd.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="vmdetector.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="chkrtdsc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="readconfig.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wmicom.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dbgprint.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="chkreg.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -32,13 +44,25 @@
     <ClInclude Include="chkcpuid.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="chkvmhdd.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="vmdetector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="chkrdtsc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="readconfig.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wmicom.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="dbgprint.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="chkreg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

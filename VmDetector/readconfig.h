@@ -7,6 +7,7 @@
 // Function definitions
 //////////////////////////////////////////////////////////////////////////
 CHAR **GetExclusionFileName();
+CHAR **GetPatchRegKeysFromConfig();
 DWORD GetRdtscDefinition(int);
 
 
