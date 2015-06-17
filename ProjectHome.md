@@ -1,0 +1,1 @@
+This project contains pure C code that can be compiled to a standard EXE program. The program can be used to detect the latest (as the time of writting) anti-vmware techniques and patch them if applicable
