@@ -4,7 +4,9 @@
 
 void wmain()
 {
+	/* ============================================================ */
 	/* Test case #1: Get whitelisting process name from config file */
+	/* ============================================================ */
 	/*
 	CHAR **whitelist = GetExclusionFileName();
 
@@ -18,7 +20,9 @@ void wmain()
 		}
 	}*/
 
+	/* ============================================================ */
 	/* Test case #2: Get RDTSC type from config file */
+	/* ============================================================ */
 	/*
 	// Get RDTSC method definition from vmdetector.ini configuration file
 	DWORD dwRdtscMethod = GetRdtscDefinition(1);
@@ -34,38 +38,42 @@ void wmain()
 	wprintf(L"[+] RDTSC value: %d\n", dwRdtscValue);
 	*/
 
+	/* ================================================================== */
 	/* Test case #3: Get machine's disk drive information by querying WMI */
-	if (WmiCheckInit())
-	{
-		/*if (WmiCheckWin32Drives())
-			wprintf(L"Found vmware/virtual string from disk drive\n");
+	/* ================================================================== */
+	//if (WmiCheckInit())
+	//{
+	//	/*if (WmiCheckWin32Drives())
+	//		wprintf(L"Found vmware/virtual string from disk drive\n");
 
-		if (WmiCheckWin32CDROMDrive())
-			wprintf(L"Found vmware/virtual string from optical drive\n");*/
+	//	if (WmiCheckWin32CDROMDrive())
+	//		wprintf(L"Found vmware/virtual string from optical drive\n");*/
 
-		if (WmiCheckWin32VideoController())
-		{
-			wprintf(L"Found vmware/virtual string from video controller\n");
+	//	if (WmiCheckWin32VideoController())
+	//	{
+	//		wprintf(L"Found vmware/virtual string from video controller\n");
 
-			// Patch VMware string
-			wprintf(L"Patching registry key.\n");
-			if (!VMRegPatcher(PATCH_WMI_VIDEOCONTROLLER_REGKEY))
-				wprintf(L"Failed patching.\n");
-			else
-				wprintf(L"Patched successfully.\n");
+	//		// Patch VMware string
+	//		wprintf(L"Patching registry key.\n");
+	//		if (!VMRegPatcher(PATCH_WMI_VIDEOCONTROLLER_REGKEY))
+	//			wprintf(L"Failed patching.\n");
+	//		else
+	//			wprintf(L"Patched successfully.\n");
 
-			// Block registry access
-			wprintf(L"Block relevant VideoController registry access.\n");
-			BlockAccessVmPciReg();
-			wprintf(L"Block relevant VideoController registry access successfully!\n");
-		}
-	}
-	else
-		wprintf(L"[+] WMI initialization failed!\n");
+	//		// Block registry access
+	//		wprintf(L"Block relevant VideoController registry access.\n");
+	//		BlockAccessVmPciReg();
+	//		wprintf(L"Block relevant VideoController registry access successfully!\n");
+	//	}
+	//}
+	//else
+	//	wprintf(L"[+] WMI initialization failed!\n");
 
-	WmiCleanup();
+	//WmiCleanup();
 
+	/* ============================================================== */
 	/* Test case #4: Get registry keys to be patched from config file */
+	/* ============================================================== */
 	//CHAR **RegKeys = GetRegKeysToBePatched();
 	//int index = 1;
 
@@ -78,6 +86,12 @@ void wmain()
 	//		RegKeys++;
 	//	}
 	//}
+
+	/* ============================================================ */
+	/* Test case #5: Check number of CPU cores
+	/* ============================================================ */
+	CheckCPUCores();
+	printf("Number of CPU cores: %d\n", g_NumberOfProcessors);
 
 	return;
 }

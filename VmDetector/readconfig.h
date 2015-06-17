@@ -4,10 +4,23 @@
 #define MAX_LINE 65536
 
 //////////////////////////////////////////////////////////////////////////
+// Constants
+//////////////////////////////////////////////////////////////////////////
+typedef enum VMDET_CONFIG_t{
+	VMDET_CONFIG_RDTSC_METHOD = 1,
+	VMDET_CONFIG_RDTSC_METHOD_VAL
+}VMDET_CONFIG;
+
+typedef enum VMDET_CONFIG_RDTSC_MET_t{
+	VMDET_CONFIG_RDTSC_MET_CONSTANT,
+	VMDET_CONFIG_RDTSC_MET_INCREASE
+}VMDET_CONFIG_RDTSC_MET;
+
+//////////////////////////////////////////////////////////////////////////
 // Function definitions
 //////////////////////////////////////////////////////////////////////////
 CHAR **GetExclusionFileName();
 CHAR **GetPatchRegKeysFromConfig();
-DWORD GetRdtscDefinition(int);
+DWORD GetRdtscDefinition(VMDET_CONFIG);
 
 

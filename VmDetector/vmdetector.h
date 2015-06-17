@@ -11,6 +11,7 @@
 #include "chkreg.h"
 #include "chkcpuid.h"
 #include "chkrdtsc.h"
+#include "chkcpucores.h"
 #include "wmicom.h"
 #include "readconfig.h"
 

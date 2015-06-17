@@ -87,7 +87,7 @@ BOOLEAN WmiCheckInit()
 			NULL,                    // Security flags.
 			0,                       // Authority (for example, Kerberos)
 			0,                       // Context object 
-			&g_pSvc                    // pointer to IWbemServices proxy
+			&g_pSvc				     // pointer to IWbemServices proxy
 			);
 
 	if (FAILED(hres))
@@ -127,6 +127,164 @@ BOOLEAN WmiCheckInit()
 	
 	// Initialization successful
 	result = true;
+
+	return result;
+}
+
+BOOLEAN WmiCheckWin32BIOSInfo()
+{
+	BOOLEAN result = FALSE;
+	HRESULT hres;
+
+	// Step 6: --------------------------------------------------
+	// Use the IWbemServices pointer to make requests of WMI ----
+	IEnumWbemClassObject* pEnumerator = NULL;
+	hres = g_pSvc->ExecQuery(
+		bstr_t("WQL"), 
+		bstr_t("SELECT * FROM Win32_BIOS"),
+		WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY, 
+		NULL,
+		&pEnumerator);
+
+	if (FAILED(hres))
+	{
+		dbgprintfW(L"WMI query failed (0x%08x)\n", hres);
+		return result;
+	}
+
+	// Step 7: -------------------------------------------------
+	// Get the data from the query in step 6 -------------------
+
+	IWbemClassObject *pclsObj;
+	ULONG uReturn = 0;
+
+	while (pEnumerator)
+	{
+		HRESULT hr = pEnumerator->Next(WBEM_INFINITE, 1, 
+			&pclsObj, &uReturn);
+
+		if(0 == uReturn)
+		{
+			dbgprintfW(L"No instance found\n");
+			return result;
+		}
+
+		VARIANT vtSerialNumber;
+
+		memset(&vtSerialNumber, 0, sizeof(VARIANT));
+
+		// Get the value of property that may contain Vmware/Virtual string
+		hr = pclsObj->Get(L"SerialNumber", 0, &vtSerialNumber, 0, 0);
+		{
+			wchar_t serialNumber[256] = {0};
+
+			BOOLEAN bSerialNumber = FALSE;
+
+			if (vtSerialNumber.pcVal != NULL)
+			{
+				wsprintf(serialNumber, L"%s", vtSerialNumber.pcVal);
+				dbgprintfW(L"\nSerialNumber: %s\n", vtSerialNumber.bstrVal);
+				if(wcsstr(_wcslwr(serialNumber), L"virtual") != NULL || wcsstr(serialNumber, L"vmware") != NULL)
+					bSerialNumber = TRUE;
+			}
+			else
+				dbgprintfW(L"\nSerialNumber: <empty>\n");
+
+			result = bSerialNumber?TRUE:FALSE;
+		}
+
+		VariantClear(&vtSerialNumber);
+
+		// We found vmware/virtual related string, no need to do further query
+		if (result)
+			break;
+
+		pclsObj->Release();
+	}
+
+	// Cleanup
+	// ========
+	pEnumerator->Release();
+	pclsObj->Release();
+
+	return result;
+}
+
+BOOLEAN WmiCheckWin32BaseBoard()
+{
+	BOOLEAN result = FALSE;
+	HRESULT hres;
+
+	// Step 6: --------------------------------------------------
+	// Use the IWbemServices pointer to make requests of WMI ----
+	IEnumWbemClassObject* pEnumerator = NULL;
+	hres = g_pSvc->ExecQuery(
+		bstr_t("WQL"), 
+		bstr_t("SELECT * FROM Win32_BaseBoard"),
+		WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY, 
+		NULL,
+		&pEnumerator);
+
+	if (FAILED(hres))
+	{
+		dbgprintfW(L"WMI query failed (0x%08x)\n", hres);
+		return result;
+	}
+
+	// Step 7: -------------------------------------------------
+	// Get the data from the query in step 6 -------------------
+
+	IWbemClassObject *pclsObj;
+	ULONG uReturn = 0;
+
+	while (pEnumerator)
+	{
+		HRESULT hr = pEnumerator->Next(WBEM_INFINITE, 1, 
+			&pclsObj, &uReturn);
+
+		if(0 == uReturn)
+		{
+			dbgprintfW(L"No instance found\n");
+			return result;
+		}
+
+		VARIANT vtProduct;
+
+		memset(&vtProduct, 0, sizeof(VARIANT));
+
+		// Get the value of property that may contain Vmware/Virtual string
+		hr = pclsObj->Get(L"Product", 0, &vtProduct, 0, 0);
+		{
+			wchar_t Product[256] = {0};
+
+			BOOLEAN bProduct = FALSE;
+
+			if (vtProduct.pcVal != NULL)
+			{
+				wsprintf(Product, L"%s", vtProduct.pcVal);
+				dbgprintfW(L"\nProduct: %s\n", vtProduct.bstrVal);
+				if(wcsstr(_wcslwr(Product), L"440bx desktop reference platform") != NULL)
+					bProduct = TRUE;
+			}
+			else
+				dbgprintfW(L"\nProduct: <empty>\n");
+
+			result = bProduct?TRUE:FALSE;
+		}
+
+		VariantClear(&vtProduct);
+
+		// We found vmware/virtual related string, no need to do further query
+		if (result)
+			break;
+
+		pclsObj->Release();
+	}
+
+	// Cleanup
+	// ========
+	pEnumerator->Release();
+	pclsObj->Release();
 
 	return result;
 }
@@ -238,7 +396,6 @@ BOOLEAN WmiCheckWin32Drives()
 	pEnumerator->Release();
 	pclsObj->Release();
 
-	CoUninitialize();
 	return result;
 }
 
@@ -287,7 +444,7 @@ BOOLEAN WmiCheckWin32CDROMDrive()
 		memset(&vtCaptionProp, 0, sizeof(VARIANT));
 		memset(&vtNameProp, 0, sizeof(VARIANT));
 		memset(&vtPnPDevIdProp, 0, sizeof(VARIANT));
-
+		
 		// Get the value of property that may contain Vmware/Virtual string
 		hr = pclsObj->Get(L"Caption", 0, &vtCaptionProp, 0, 0);
 		hr = pclsObj->Get(L"Name", 0, &vtNameProp, 0, 0);
@@ -432,7 +589,16 @@ BOOLEAN WmiCheckWin32VideoController()
 
 void WmiCleanup()
 {
-	g_pSvc->Release();
-	g_pLoc->Release();
+	__try
+	{
+		if(g_pLoc != NULL)
+			g_pLoc->Release();
+		if(g_pSvc != NULL)
+			g_pSvc->Release();
+	}
+	__except(EXCEPTION_EXECUTE_HANDLER)
+	{
+		dbgprintfW(L"AV caught!\n");
+	}
 	CoUninitialize();
 }

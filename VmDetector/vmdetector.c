@@ -13,7 +13,7 @@ int wmain(int args, WCHAR *argv[])
 	int i=1;
 	int j=0;
 	int k=0;
-	int arrFixable[10] = {0};
+	int arrFixable[20] = {0};
 	
 	// WMI initialization
 	WmiCheckInit();
@@ -51,7 +51,22 @@ int wmain(int args, WCHAR *argv[])
 	}
 	i++;
 
-	/* CASE 3 */
+	wprintf(L"[%d] Checking if there is only one CPU core: ", i);
+	if (CheckCPUCores())
+	{
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED|FOREGROUND_INTENSITY);
+		wprintf(L"Failed\n");
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
+	}
+	else 
+	{
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN|FOREGROUND_INTENSITY);
+		wprintf(L"Passed\n");
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
+	}
+	i++;
+
+	/* CASE 4 */
 	wprintf(L"[%d] Checking RTDSC: ", i);
 	if (CheckRTDSC())
 	{
@@ -69,7 +84,7 @@ int wmain(int args, WCHAR *argv[])
 	}
 	i++;
 
-	/* CASE 4 */
+	/* CASE 5 */
 	wprintf(L"[%d] Checking \"SYSTEM\\CurrentControlSet\\Services\\Disk\\Enum\": ", i);
 	if (CheckVmDiskReg())
 	{
@@ -87,7 +102,7 @@ int wmain(int args, WCHAR *argv[])
 	}
 	i++;
 
-	/* CASE 5 */
+	/* CASE 6 */
 	wprintf(L"[%d] Checking registry \"SYSTEM\\CurrentControlSet\\Enum\\IDE\": ", i);
 	if (CheckVmIdeReg())
 	{
@@ -105,7 +120,7 @@ int wmain(int args, WCHAR *argv[])
 	}
 	i++;
 
-	/* CASE 6 */
+	/* CASE 7 */
 	wprintf(L"[%d] Checking registry \"SYSTEM\\CurrentControlSet\\Services\\PartMgr\\Enum\": ", i);
 	if (CheckVmPartMgrReg())
 	{
@@ -123,7 +138,7 @@ int wmain(int args, WCHAR *argv[])
 	}
 	i++;
 
-	/* CASE 7 */
+	/* CASE 8 */
 	wprintf(L"[%d] Checking WMI Win32_DiskDrive...: ", i);
 	if (WmiCheckWin32Drives())
 	{
@@ -141,9 +156,45 @@ int wmain(int args, WCHAR *argv[])
 	}
 	i++;
 
-	/* CASE 8 */
+	/* CASE 9 */
 	wprintf(L"[%d] Checking WMI Win32_VideoController...: ", i);
-	if (WmiCheckInit() && WmiCheckWin32VideoController())
+	if (WmiCheckWin32VideoController())
+	{
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED|FOREGROUND_INTENSITY);
+		wprintf(L"Failed ");
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
+		wprintf(L"(FIXABLE)\n");
+		arrFixable[j++] = i;
+	}
+	else 
+	{
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN|FOREGROUND_INTENSITY);
+		wprintf(L"Passed\n");
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
+	}
+	i++;
+
+	/* CASE 10 */
+	wprintf(L"[%d] Checking WMI Win32_BIOSInfo...: ", i);
+	if (WmiCheckWin32BIOSInfo())
+	{
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED|FOREGROUND_INTENSITY);
+		wprintf(L"Failed ");
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
+		wprintf(L"(FIXABLE)\n");
+		arrFixable[j++] = i;
+	}
+	else 
+	{
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN|FOREGROUND_INTENSITY);
+		wprintf(L"Passed\n");
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
+	}
+	i++;
+
+	/* CASE 11 */
+	wprintf(L"[%d] Checking WMI Win32_BaseBoard...: ", i);
+	if (WmiCheckWin32BaseBoard())
 	{
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED|FOREGROUND_INTENSITY);
 		wprintf(L"Failed ");
@@ -217,7 +268,7 @@ int wmain(int args, WCHAR *argv[])
 				CloseHandle(hDevObj);
 				break;
 
-			case 3: // Item 3
+			case 4: // Item 4
 				wprintf(L"[+] Hooking RDTSC interrupt handler...");
 				dwResult = FALSE;
 				hDevObj = CreateFile(
@@ -275,18 +326,18 @@ int wmain(int args, WCHAR *argv[])
 				// Send RDTSC definition to VMDetectorSys
 				{
 					// Get RDTSC method definition from vmdetector.ini configuration file
-					DWORD dwRdtscMethod = GetRdtscDefinition(1);
+					DWORD dwRdtscMethod = GetRdtscDefinition(VMDET_CONFIG_RDTSC_METHOD);
 
 					// Get RDTSC desired value from vmdetector.ini configuration file
-					DWORD dwRdtscValue = GetRdtscDefinition(2);
+					DWORD dwRdtscValue = GetRdtscDefinition(VMDET_CONFIG_RDTSC_METHOD_VAL);
 
-					// If not defined in the configuration file, use value in g_RDTSC_CONSTANT instead
+					// If not defined in the configuration file, use default value (g_RDTSC_CONSTANT) instead
 					if (dwRdtscValue == -1)
 						dwRdtscValue = g_RDTSC_CONSTANT;
 
 					switch(dwRdtscMethod)
 					{
-					case 0:
+					case VMDET_CONFIG_RDTSC_MET_CONSTANT:
 						// Set RDTSC to constant value
 						if (!DeviceIoControl(
 							hDevObj, 
@@ -296,7 +347,7 @@ int wmain(int args, WCHAR *argv[])
 							&dwBytesReturned, 
 							NULL)) wprintf(L"\n[-] Failed in operation IOCTL_RDTSCEMU_METHOD_ALWAYS_CONST. (0x%08x)\n", GetLastError());
 						break;
-					case 1:
+					case VMDET_CONFIG_RDTSC_MET_INCREASE:
 						// Set RDTSC to delta value
 						if (!DeviceIoControl(
 							hDevObj, 
@@ -337,7 +388,7 @@ int wmain(int args, WCHAR *argv[])
 				CloseHandle(hDevObj);
 				break;
 
-			case 4: // Item 4
+			case 5: // Item 5
 				wprintf(L"[+] Patching key \"SYSTEM\\CurrentControlSet\\Services\\Disk\\Enum\"...");
 				dwResult = FALSE;
 				hDevObj = CreateFile(
@@ -368,7 +419,7 @@ int wmain(int args, WCHAR *argv[])
 				CloseHandle(hDevObj);
 				break;
 
-			case 5: // CheckVmIdeReg failed
+			case 6: // CheckVmIdeReg failed
 				wprintf(L"[+] Patching key \"SYSTEM\\CurrentControlSet\\Enum\\IDE\"...");
 				dwResult = BlockAccessVmIdeReg();
 
@@ -386,7 +437,7 @@ int wmain(int args, WCHAR *argv[])
 				}
 				break;
 
-			case 6: // CheckVmPartMgrReg failed
+			case 7: // CheckVmPartMgrReg failed
 				wprintf(L"[+] Restrict access to key \"SYSTEM\\CurrentControlSet\\Services\\PartMgr\\Enum");
 				dwResult = BlockAccessPartMgrReg();
 
@@ -404,7 +455,7 @@ int wmain(int args, WCHAR *argv[])
 				}
 				break;
 			
-			case 7: // WmiCheckWin32Drives failed
+			case 8: // WmiCheckWin32Drives failed
 				wprintf(L"[+] Bypassing WMI Win32_DiskDrive for VMware. Installing WMIFilter driver (required reboot!)... ");
 
 				// Method 1: Manual installation via INF file
@@ -445,7 +496,7 @@ int wmain(int args, WCHAR *argv[])
 				}
 				break;
 
-			case 8: // WmiCheckWin32VideoController failed
+			case 9: // WmiCheckWin32VideoController failed
 				{
 					BOOLEAN bResult1, bResult2;
 
@@ -467,6 +518,87 @@ int wmain(int args, WCHAR *argv[])
 					}
 				}
 				break;
+
+			case 10: // WmiCheckWin32BIOSInfo failed
+				wprintf(L"[+] Bypassing WMI Win32_BIOSInfo for VMware. Installing WMIFilter driver (required reboot!)... ");
+
+				// Method 1: Manual installation via INF file
+				// Method 2: Refer to Ctrl2Cap client (PNP loade method)
+				// Method 3: WMI filter will attach the target device at run time, use regular Win32 API service installation method
+				dwResult = InstallAndStartWMIFilterDriver(VMDETECTOR_WMIFLT_DRIVER_FILE);
+
+				if (dwResult)
+				{
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN|FOREGROUND_INTENSITY);
+					wprintf(L" Succeeded\n");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
+				}
+				else
+				{
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED|FOREGROUND_INTENSITY);
+					wprintf(L" Failed\n");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
+				}
+
+				if (dwResult) 
+				{
+					// Re-run VmDetector after reboot
+					InstallVmDetectorRunOnce();
+
+					// Reboot the machine to load wmifilter
+					RebootMachine();
+				}
+				else
+				{
+					// Print error message when failed to install WMIfilter driver
+					if (GetLastError() == ERROR_SERVICE_ALREADY_RUNNING) 
+						wprintf(L"[+] The service \"%s\" was already started and running.\n", FLT_SERVICE_NAME);
+					else if (GetLastError() == ERROR_SERVICE_MARKED_FOR_DELETE)
+						wprintf(L"[+] The service \"%s\" was already marked for deletion.\n", FLT_SERVICE_NAME);
+					else if (GetLastError() != ERROR_SUCCESS) 
+						wprintf(L"[-] Failed to install and load the driver \"%s\". (0x%08x)\n", FLT_DISPLAY_NAME, GetLastError());
+				}
+				break;
+			case 11: // WmiCheckWin32BaseBoard failed
+				wprintf(L"[+] Bypassing WMI Win32_BaseBoard for VMware. Installing WMIFilter driver (required reboot!)... ");
+
+				// Method 1: Manual installation via INF file
+				// Method 2: Refer to Ctrl2Cap client (PNP loade method)
+				// Method 3: WMI filter will attach the target device at run time, use regular Win32 API service installation method
+				dwResult = InstallAndStartWMIFilterDriver(VMDETECTOR_WMIFLT_DRIVER_FILE);
+
+				if (dwResult)
+				{
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN|FOREGROUND_INTENSITY);
+					wprintf(L" Succeeded\n");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
+				}
+				else
+				{
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED|FOREGROUND_INTENSITY);
+					wprintf(L" Failed\n");
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
+				}
+
+				if (dwResult) 
+				{
+					// Re-run VmDetector after reboot
+					InstallVmDetectorRunOnce();
+
+					// Reboot the machine to load wmifilter
+					RebootMachine();
+				}
+				else
+				{
+					// Print error message when failed to install WMIfilter driver
+					if (GetLastError() == ERROR_SERVICE_ALREADY_RUNNING) 
+						wprintf(L"[+] The service \"%s\" was already started and running.\n", FLT_SERVICE_NAME);
+					else if (GetLastError() == ERROR_SERVICE_MARKED_FOR_DELETE)
+						wprintf(L"[+] The service \"%s\" was already marked for deletion.\n", FLT_SERVICE_NAME);
+					else if (GetLastError() != ERROR_SUCCESS) 
+						wprintf(L"[-] Failed to install and load the driver \"%s\". (0x%08x)\n", FLT_DISPLAY_NAME, GetLastError());
+				}
+				break;
 			default:
 				break;
 		}
@@ -482,9 +614,9 @@ int wmain(int args, WCHAR *argv[])
 	//	/*if (k >= j)
 	//		if (!StopVmDetectorDriver())
 	//			printf("[-] Failed to stop driver. (0x%08x)\n", GetLastError());*/
-	}
+	}// End while (k < j)
 
-	system("pause");
+	//system("pause");
 	return 0;
 }
 

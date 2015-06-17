@@ -15,7 +15,8 @@ BOOLEAN	WmiCheckInit();
 BOOLEAN WmiCheckWin32Drives();
 BOOLEAN WmiCheckWin32CDROMDrive();
 BOOLEAN WmiCheckWin32VideoController();
-
+BOOLEAN WmiCheckWin32BIOSInfo();
+BOOLEAN WmiCheckWin32BaseBoard();
 
 #ifdef __cplusplus /* If this is a C++ compiler, end C linkage */
 }

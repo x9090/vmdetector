@@ -76,7 +76,7 @@ CHAR **GetExclusionFileName()
 	
 }
 
-DWORD GetRdtscDefinition(int option)
+DWORD GetRdtscDefinition(VMDET_CONFIG option)
 {
 	FILE *fConf = NULL;
 	CHAR *contents = NULL;
@@ -90,7 +90,7 @@ DWORD GetRdtscDefinition(int option)
 	if (!fConf)
 	{
 		dbgprintfA(" (%s:%d): %s not found\n", __FUNCTION__, __LINE__, g_ConfigFileName);
-		return NULL;
+		return -1;
 	}
 
 	// Get file size
@@ -120,7 +120,7 @@ DWORD GetRdtscDefinition(int option)
 			else if (strstr(szBuff, "[vmdetector_conf]") != NULL)
 				bValid = TRUE;
 			// RDTSC method definition
-			else if(strstr(szBuff, "rdtsc_met=") != NULL && bValid && option == 1)
+			else if(strstr(szBuff, "rdtsc_met=") != NULL && bValid && option == VMDET_CONFIG_RDTSC_METHOD)
 			{
 				CHAR *start = strrchr(szBuff, '1');
 
@@ -133,7 +133,7 @@ DWORD GetRdtscDefinition(int option)
 				dwRdtscDef = start==NULL?-1:atoi(start);
 			}
 			// RDTSC value definition
-			else if(strstr(szBuff, "rdtsc_val=") != NULL && bValid && option == 2)
+			else if(strstr(szBuff, "rdtsc_val=") != NULL && bValid && option == VMDET_CONFIG_RDTSC_METHOD_VAL)
 			{
 				CHAR *start = strrchr(szBuff, '=');
 				CHAR *end   = strrchr(szBuff, '\n');
