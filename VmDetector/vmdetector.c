@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <stdio.h>
+#include <VersionHelpers.h>
 #include "vmdetector.h"
 #include "utils.h"
 
@@ -456,13 +457,42 @@ int wmain(int args, WCHAR *argv[])
 				break;
 			
 			case 8: // WmiCheckWin32Drives failed
-				wprintf(L"[+] Bypassing WMI Win32_DiskDrive for VMware. Installing WMIFilter driver (required reboot!)... ");
 
-				// Method 1: Manual installation via INF file
-				// Method 2: Refer to Ctrl2Cap client (PNP loade method)
-				// Method 3: WMI filter will attach the target device at run time, use regular Win32 API service installation method
-				dwResult = InstallAndStartWMIFilterDriver(VMDETECTOR_WMIFLT_DRIVER_FILE);
-				
+				if (IsWindows7OrGreater(PATCH_WMI_DISKDRIVE_SCSI_REGKEY))
+				{
+					wprintf(L"[+] Bypassing WMI Win32_DiskDrive for VMware. Patching key...");
+					// Note: Win32_DiskDrive, ID_PNPDeviceID is not retrieved from the registry
+					dwResult = VMRegPatcher(PATCH_WMI_DISKDRIVE_SCSI_REGKEY);
+					// TODO: Some other patch for ID_PNPDeviceID
+				}
+				else if (IsWindowsXPSP3OrGreater())
+				{
+					// Method 1: Manual installation via INF file
+					// Method 2: Refer to Ctrl2Cap client (PNP loade method)
+					// Method 3: WMI filter will attach the target device at run time, use regular Win32 API service installation method
+					wprintf(L"[+] Bypassing WMI Win32_DiskDrive for VMware. Installing WMIFilter driver (required reboot!)... ");
+					dwResult = InstallAndStartWMIFilterDriver(VMDETECTOR_WMIFLT_DRIVER_FILE);
+
+					if (dwResult)
+					{
+						// Re-run VmDetector after reboot
+						InstallVmDetectorRunOnce();
+
+						// Reboot the machine to load wmifilter
+						RebootMachine();
+					}
+					else
+					{
+						// Print error message when failed to install WMIfilter driver
+						if (GetLastError() == ERROR_SERVICE_ALREADY_RUNNING)
+							wprintf(L"[+] The service \"%s\" was already started and running.\n", FLT_SERVICE_NAME);
+						else if (GetLastError() == ERROR_SERVICE_MARKED_FOR_DELETE)
+							wprintf(L"[+] The service \"%s\" was already marked for deletion.\n", FLT_SERVICE_NAME);
+						else if (GetLastError() != ERROR_SUCCESS)
+							wprintf(L"[-] Failed to install and load the driver \"%s\". (0x%08x)\n", FLT_DISPLAY_NAME, GetLastError());
+					}
+				}
+
 				if (dwResult)
 				{
 					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN|FOREGROUND_INTENSITY);
@@ -476,24 +506,6 @@ int wmain(int args, WCHAR *argv[])
 					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
 				}
 
-				if (dwResult) 
-				{
-					// Re-run VmDetector after reboot
-					InstallVmDetectorRunOnce();
-
-					// Reboot the machine to load wmifilter
-					RebootMachine();
-				}
-				else
-				{
-					// Print error message when failed to install WMIfilter driver
-					if (GetLastError() == ERROR_SERVICE_ALREADY_RUNNING) 
-						wprintf(L"[+] The service \"%s\" was already started and running.\n", FLT_SERVICE_NAME);
-					else if (GetLastError() == ERROR_SERVICE_MARKED_FOR_DELETE)
-						wprintf(L"[+] The service \"%s\" was already marked for deletion.\n", FLT_SERVICE_NAME);
-					else if (GetLastError() != ERROR_SUCCESS) 
-						wprintf(L"[-] Failed to install and load the driver \"%s\". (0x%08x)\n", FLT_DISPLAY_NAME, GetLastError());
-				}
 				break;
 
 			case 9: // WmiCheckWin32VideoController failed
@@ -523,7 +535,7 @@ int wmain(int args, WCHAR *argv[])
 				wprintf(L"[+] Bypassing WMI Win32_BIOSInfo for VMware. Installing WMIFilter driver (required reboot!)... ");
 
 				// Method 1: Manual installation via INF file
-				// Method 2: Refer to Ctrl2Cap client (PNP loade method)
+				// Method 2: Refer to Ctrl2Cap client (PNP load method)
 				// Method 3: WMI filter will attach the target device at run time, use regular Win32 API service installation method
 				dwResult = InstallAndStartWMIFilterDriver(VMDETECTOR_WMIFLT_DRIVER_FILE);
 

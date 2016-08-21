@@ -7,6 +7,7 @@
 #include "readconfig.h"
 #include "utils.h"
 
+#pragma warning(disable:4996)
 #define MAX_KEY_LENGTH 255
 
 // 2 ways of modifying ACLs
@@ -26,6 +27,7 @@ BOOLEAN RestrictAccessToReg(CHAR *Key)
 	PACL paclNew	= NULL;
 	PACL paclOld	= NULL;
 	BOOLEAN bresult = FALSE;
+	int result = ERROR_ACCESS_DENIED;
 
 	// Create a SID for the BUILTIN\Administrators group.
 	if (!AllocateAndInitializeSid(&SIDAuthNT, 2,
@@ -41,7 +43,7 @@ BOOLEAN RestrictAccessToReg(CHAR *Key)
 						SE_REGISTRY_KEY, 
 						DACL_SECURITY_INFORMATION, NULL, NULL, 
 						&paclOld, NULL, &pSd) != ERROR_SUCCESS)
-		return bresult;
+		goto CLEANUP;
 
 	// Empty explicit access data structure
 	ZeroMemory(&ea, sizeof(EXPLICIT_ACCESS));
@@ -58,11 +60,11 @@ BOOLEAN RestrictAccessToReg(CHAR *Key)
 
 	// Attach new ACL as the object's DACL
 	{
-		int result = SetNamedSecurityInfoA(
-									Key, 
-									SE_REGISTRY_KEY, 
-									DACL_SECURITY_INFORMATION, NULL, NULL, 
-									paclNew, NULL);
+		result = SetNamedSecurityInfoA(
+					Key, 
+					SE_REGISTRY_KEY,
+					DACL_SECURITY_INFORMATION, NULL, NULL,
+					paclNew, NULL);
 		if (result == ERROR_SUCCESS)
 			bresult = TRUE;
 	
@@ -102,16 +104,19 @@ BOOLEAN RestrictAccessToReg(CHAR *Key)
 	}
 
 CLEANUP:
-		if (pWorldSid)
-			FreeSid(pWorldSid);
-		if (pSIDAdmin)
-			FreeSid(pSIDAdmin);
-		if (paclNew)
-			LocalFree(paclNew);
-		if (paclOld)
-			LocalFree(paclOld);
-		if (pSd)
-			LocalFree(pSd);
+
+	
+	SetLastError(result);
+	if (pWorldSid)
+		FreeSid(pWorldSid);
+	if (pSIDAdmin)
+		FreeSid(pSIDAdmin);
+	if (paclNew)
+		LocalFree(paclNew);
+	if (paclOld)
+		LocalFree(paclOld);
+	if (pSd)
+		LocalFree(pSd);
 
 	return bresult;
 }
@@ -554,8 +559,8 @@ BOOLEAN PatchRegistryValueData(RegistryKey Key, CHAR *szSubKey, CHAR *szValue, C
 		// First form the registry key object string used by SE_REGISTERY_KEY
 		strcat_s(szKeyStr, MAX_PATH-1, szSubKey);
 
-		// Add Administrator to the specified registry key with read and write permission
-		AddSidAllowAccessRightToReg(szKeyStr, "Administrators", &NtAuthority, GENERIC_READ|GENERIC_WRITE);
+		// Add Administrator to the specified registry key with read, write and delete permission
+		AddSidAllowAccessRightToReg(szKeyStr, "Administrators", &NtAuthority, GENERIC_READ | GENERIC_WRITE);
 
 		// Try modifying the key again
 		if((retnval=RegOpenKeyExA(RegKey, szSubKey, 0, KEY_READ|KEY_WRITE, &hKey)) == ERROR_SUCCESS){
@@ -572,6 +577,97 @@ BOOLEAN PatchRegistryValueData(RegistryKey Key, CHAR *szSubKey, CHAR *szValue, C
 	if (retnval != ERROR_SUCCESS)
 		dbgprintfA(" (%s:%d): Unable to open key: 0x%x\n", __FUNCTION__, __LINE__, retnval);
 	
+	return bResult;
+}
+
+/**
+
+	Description: Helper function #5
+	Purpose: Rename the registry key that contains VM string
+	Params: 
+	@Key		=> Registry key type
+	@oldName	=> Old keyname
+	@newName	=> New keyname
+
+
+**/
+BOOLEAN PatchRegistryKeyName(RegistryKey Key, WCHAR *wSubKey, WCHAR *oldName, WCHAR *newName)
+{
+	LONG retnval;
+	HKEY hKey;
+	HKEY RegKey;
+	WCHAR wKeyStr[MAX_PATH] = { 0 };
+	CHAR szKeyStr[MAX_PATH] = { 0 };
+	BOOLEAN bResult = FALSE;
+
+	switch (Key)
+	{
+	case HKCR:
+		RegKey = HKEY_CLASSES_ROOT;
+		wcscat_s(wKeyStr, MAX_PATH - 1, L"CLASSES_ROOT\\");
+		break;
+	case HKCC:
+		RegKey = HKEY_CURRENT_CONFIG;
+		wcscat_s(wKeyStr, MAX_PATH - 1, L"CURRENT_CONFIG\\");
+		break;
+	case HKCU:
+		RegKey = HKEY_CURRENT_USER;
+		wcscat_s(wKeyStr, MAX_PATH - 1, L"CURRENT_USER\\");
+		break;
+	case HKLM:
+		RegKey = HKEY_LOCAL_MACHINE;
+		wcscat_s(wKeyStr, MAX_PATH - 1, L"MACHINE\\");
+		break;
+	case HKU:
+		RegKey = HKEY_USERS;
+		wcscat_s(wKeyStr, MAX_PATH - 1, L"USERS\\");
+		break;
+	default:
+		return bResult;
+	}
+
+	if (newName == NULL)
+		return bResult;
+
+	// TODO: Check if the oldName contains VMware string
+	if ((retnval = RegOpenKeyExW(RegKey, wSubKey, 0, KEY_READ | KEY_WRITE | KEY_CREATE_SUB_KEY | DELETE, &hKey)) == ERROR_SUCCESS){
+		if (RegRenameKey(hKey, oldName, newName) == ERROR_SUCCESS)
+		{
+			bResult = TRUE;
+			RegCloseKey(hKey);
+		}
+		else
+			RegCloseKey(hKey);
+	}
+	else if (retnval == ERROR_ACCESS_DENIED)
+	{
+		// Not allow to modify the registry key
+		// Add Administrator account to the specified registry key
+		SID_IDENTIFIER_AUTHORITY NtAuthority = SECURITY_NT_AUTHORITY;
+
+		// First form the registry key object string used by SE_REGISTERY_KEY
+		wcscat_s(wKeyStr, MAX_PATH - 1, wSubKey);
+
+		WideCharToMultiByte(CP_THREAD_ACP, WC_COMPOSITECHECK, wKeyStr, -1, szKeyStr, MAX_PATH, NULL, NULL);
+
+		// Add Administrator to the specified registry key with read and write permission
+		AddSidAllowAccessRightToReg(szKeyStr, "Administrators", &NtAuthority, GENERIC_READ | GENERIC_WRITE | DELETE);
+
+		// Try modifying the key again
+		if ((retnval = RegOpenKeyExW(RegKey, wSubKey, 0, KEY_READ | KEY_WRITE | KEY_CREATE_SUB_KEY | DELETE, &hKey)) == ERROR_SUCCESS){
+			if (RegRenameKey(hKey, oldName, newName) == ERROR_SUCCESS)
+			{
+				bResult = TRUE;
+				RegCloseKey(hKey);
+			}
+			else
+				RegCloseKey(hKey);
+		}
+	}
+
+	if (retnval != ERROR_SUCCESS)
+		dbgprintfA(" (%s:%d): Unable to open key: 0x%x\n", __FUNCTION__, __LINE__, retnval);
+
 	return bResult;
 }
 
@@ -593,6 +689,9 @@ BOOLEAN VMRegFindAndPatchByRegValue(RegistryKey Key, CHAR *SubKey, CHAR *Value)
 	// Get specified registry data
 	szRegData = GetRegistryValueData(HKLM, SubKey, Value, &type);
 
+	if (szRegData == NULL)
+		return bResult;
+
 	// Prepare our registry data for comparison later
 	memcpy_s(szData, sizeof(szData), szRegData, strlen(szRegData));
 
@@ -601,6 +700,10 @@ BOOLEAN VMRegFindAndPatchByRegValue(RegistryKey Key, CHAR *SubKey, CHAR *Value)
 	if (strstr(szData, "vmware") != NULL)
 	{
 		bResult = PatchRegistryValueData(HKLM, SubKey, Value, szRegData, type);
+	}
+	else
+	{
+		bResult = TRUE;
 	}
 
 	// Empty buffer that stores a copy of our registry data
@@ -614,7 +717,7 @@ BOOLEAN VMRegFindAndPatchByRegValue(RegistryKey Key, CHAR *SubKey, CHAR *Value)
 
 /** 
 
-	Description: Helper function #5
+	Description: Generic VM registry key patcher
 	Purpose: Generic VM string patcher from registry based on the registry key defined in vmdetector.ini
 
 **/
@@ -637,7 +740,7 @@ BOOLEAN VMRegPatcher(int PatchType)
 				dbgprintfA(" (%s:%d): (%d)%s\n", __FUNCTION__, __LINE__, index++, *RegKeys);
 
 				// Continue if not PCI registry key
-				if (strstr(*RegKeys, "HKEY_LOCAL_MACHINE\\SYSTEM\\") == NULL && strstr(*RegKeys, "\\Enum\\PCI") == NULL) 
+				if (strstr(*RegKeys, "HKEY_LOCAL_MACHINE\\SYSTEM\\") == NULL || strstr(*RegKeys, "\\Enum\\PCI") == NULL) 
 				{
 					RegKeys++;
 					continue;
@@ -675,6 +778,89 @@ BOOLEAN VMRegPatcher(int PatchType)
 				RegKeys++;
 			}
 		}while(0);
+
+		break;
+	case PATCH_WMI_DISKDRIVE_SCSI_REGKEY:
+		do{
+			CHAR **RegKeys = GetPatchRegKeysFromConfig();
+			int index = 1;
+
+			// Quit if no registry keys defined in vmdetector.ini config
+			if (RegKeys == NULL) break;
+
+			while (*RegKeys != NULL)
+			{
+				dbgprintfA(" (%s:%d): (%d)%s\n", __FUNCTION__, __LINE__, index++, *RegKeys);
+
+				// Continue if not SCSI registry key
+				if (strstr(*RegKeys, "HKEY_LOCAL_MACHINE\\SYSTEM\\") == NULL || strstr(*RegKeys, "\\Enum\\SCSI\\Disk&Ven_VMware_&Prod_VMware_Virtual_S") == NULL)
+				{
+					RegKeys++;
+					continue;
+				}
+
+				// Otherwise start obtaining the registry data
+				{
+					CHAR szData[MAX_PATH] = { 0 };
+					CHAR *szRegData = NULL;
+					CHAR *szSubKey = NULL;
+					WCHAR wSubKey[MAX_PATH] = { 0 };
+					BOOLEAN bPatch1, bPatch2, bPatch3, bPatch4;
+
+					szSubKey = strstr(*RegKeys, "SYSTEM\\");
+
+					// The "FriendlyName" should contain "VMware, VMware Virtual S SCSI Disk Device"
+					if (!(bPatch1 = VMRegFindAndPatchByRegValue(HKLM, szSubKey, "FriendlyName")))
+						dbgprintfA(" (%s:%d): Failed to patch SCSI \"FriendlyName\"\n", __FUNCTION__, __LINE__);
+
+					if (!(bPatch2 = VMRegFindAndPatchByRegValue(HKLM, szSubKey, "HardwareID")))
+						dbgprintfA(" (%s:%d): Failed to patch SCSI \"HardwareID\"\n", __FUNCTION__, __LINE__);
+
+					// Restrict access to the target registry keys
+					CHAR szScsiChildKey[MAX_PATH] = { 0 };
+
+					strcat_s(szScsiChildKey, MAX_PATH - 1, "MACHINE\\");
+					strcat_s(szScsiChildKey, MAX_PATH - 1, szSubKey);
+
+					// Set ACL on SYSTEM\CurrentControlSet\Enum\SCSI\Disk&Ven_VMware_&Prod_VMware_Virtual_S\5&1982005&0&000000 key
+					if (!(bPatch3 = RestrictAccessToReg(szScsiChildKey)))
+						dbgprintfA(" (%s:%d): Failed to restrict access to SCSI \"%s\" (0x%x)\n", __FUNCTION__, __LINE__, szScsiChildKey, GetLastError());
+					
+					CHAR szScsiRootKey[MAX_PATH] = { 0 };
+					CHAR *szTempSubKey = szSubKey;
+					szSubKey = strrchr(szSubKey, '\\');
+					*szSubKey = '\0';
+					szSubKey = strrchr(szTempSubKey, '\\');
+					*szSubKey = '\0';
+					strcat_s(szScsiRootKey, MAX_PATH - 1, "MACHINE\\");
+					strcat_s(szScsiRootKey, MAX_PATH - 1, szTempSubKey);
+
+					// Set ACL on SYSTEM\CurrentControlSet\Enum\SCSI\Disk&Ven_VMware_&Prod_VMware_Virtual_S key
+					if (!(bPatch4 = RestrictAccessToReg(szScsiRootKey)))
+						dbgprintfA(" (%s:%d): Failed to restrict access to SCSI \"%s\" (0x%x)\n", __FUNCTION__, __LINE__, szScsiRootKey, GetLastError());
+
+					// Finally patch the registry key that contains the VM string
+					//DWORD dwLength = strlen(szSubKey);
+
+					// TODO: Access denied to rename the key :( 
+					//       Figure out how to rename the key
+					//MultiByteToWideChar(CP_THREAD_ACP, MB_PRECOMPOSED, szSubKey, dwLength, wSubKey, dwLength * 2);
+					/*if (!(bPatch3 = PatchRegistryKeyName(HKLM, L"SYSTEM\\CurrentControlSet\\Enum\\SCSI", L"Disk&Ven_VMware_&Prod_VMware_Virtual_S", L"Disk&Pen_VMw@re_&Prod_VMw@re_Virtu@l_S")) &&
+						!(bPatch4 = PatchRegistryKeyName(HKLM, L"SYSTEM\\CurrentControlSet\\Enum\\SCSI\\Disk&Pen_VMw@re_&Prod_VMw@re_Virtu@l_S", L"5&1982005&0&000000", L"5&1234567&1&1234")))
+						dbgprintfA(" (%s:%d): Failed to rename key %s\n", __FUNCTION__, __LINE__, szSubKey);*/
+
+					//if (!(bPatch3 = PatchRegistryKeyName(HKLM, L"SYSTEM\\CurrentControlSet\\Enum\\SCSI\\Disk&Ven_VMware_&Prod_VMware_Virtual_S", NULL, L"Disk&Pen_VMw@re_&Prod_VMw@re_Virtu@l_S")) &&
+					//	!(bPatch4 = PatchRegistryKeyName(HKLM, L"SYSTEM\\CurrentControlSet\\Enum\\SCSI\\Disk&Ven_VMware_&Prod_VMware_Virtual_S", L"5&1982005&0&000000", L"5&1234567&1&1234")))
+					//	dbgprintfA(" (%s:%d): Failed to rename key %s\n", __FUNCTION__, __LINE__, szSubKey);
+
+					bResult = bPatch1&&bPatch2&&bPatch3&&bPatch4 ? TRUE : FALSE;
+
+				}
+
+				// Next registry key
+				RegKeys++;
+			}
+		} while (0);
 
 		break;
 	default:
@@ -787,6 +973,39 @@ BOOLEAN CheckStorageProperty()
 		NULL
 	};
 
+	/*
+		Retrieving the storage device property on Windows 7
+		9399f9b4 828a00eb 0015fb70 853c4e80 00000080 nt!memcpy+0x33
+		9399fa04 82897bbf 016fedd8 9399fa4c 9399fa44 nt!IopCompleteRequest+0xa0
+		9399fa54 87c219f9 866fed98 9399fa74 87c21a17 nt!IopfCompleteRequest+0x3b4
+		9399fa60 87c21a17 866fed98 00000000 00000000 storport!RaidCompleteRequestEx+0x1c
+		9399fa74 87c2fb13 866fed98 00000000 866fed98 storport!RaidCompleteRequest+0x12
+		9399fa88 87c59899 85387728 00000080 9399fab4 storport!RaUnitStorageQueryDevicePropertyIoctl+0x4f
+		9399fa98 87c59ddb 85387728 866fed98 87c35000 storport!RaUnitStorageQueryPropertyIoctl+0x70
+		9399fab4 87c57cd0 85387728 002d1400 866fee48 storport!RaUnitDeviceControlIrp+0x186
+		9399fad0 82856593 85387670 866fed98 866fee6c storport!RaDriverDeviceControlIrp+0x60					// It is a virtual driver to \Driver\LSI_SAS? !devobj 85387670
+		9399fae8 882616d9 002d1400 866fed98 8594d030 nt!IofCallDriver+0x63
+		9399fb6c 8824bd0a 8594d030 866fed98 866fed98 CLASSPNP!ClassDeviceControl+0x72f
+		9399fb88 88260e38 8594d030 002d1400 8594dd18 disk!DiskDeviceControl+0x1ac
+		9399fba4 8825f3bf 8594d030 866fed98 8594d030 CLASSPNP!ClassDeviceControlDispatch+0x48
+		9399fbb8 82856593 8594d030 866fed98 866fed98 CLASSPNP!ClassGlobalDispatch+0x20
+		9399fbd0 87b238a4 85a54d78 866fed98 00000000 nt!IofCallDriver+0x63
+		9399fbe8 87b23152 00000000 8594de08 8594dd18 partmgr!PmFilterDeviceControl+0x23c
+		9399fbfc 82856593 8594dd18 866fed98 866fed98 partmgr!PmGlobalDispatch+0x1d
+		9399fc14 82a4a99f 85a54d78 866fed98 866fee50 nt!IofCallDriver+0x63
+		9399fc34 82a4db71 8594dd18 85a54d78 00000000 nt!IopSynchronousServiceTail+0x1f8
+		9399fcd0 82a943f4 8594dd18 866fed98 00000000 nt!IopXxxControlFile+0x6aa
+		9399fd04 8285d1ea 00000118 00000000 00000000 nt!NtDeviceIoControlFile+0x2a
+		9399fd04 776f70b4 00000118 00000000 00000000 nt!KiFastCallEntry+0x12a
+		0015fa90 776f5864 758b989d 00000118 00000000 ntdll!KiFastSystemCallRet
+		0015fa94 758b989d 00000118 00000000 00000000 ntdll!ZwDeviceIoControlFile+0xc
+		0015faf4 76cda671 00000118 002d1400 0015fb54 KERNELBASE!DeviceIoControl+0xf6
+		0015fb20 001e1ec1 00000118 002d1400 0015fb54 kernel32!DeviceIoControlImplementation+0x80
+		0015fc74 001e3173 00000000 00000000 00000000 VmDetector!CheckStorageProperty+0xe1 [c:\users\x9090\documents\visual studio 2010\projects\vmdetector-git\vmdetector\chkreg.c @ 809]
+		0015fcfc 001e7207 00000001 002a2078 002a20a8 VmDetector!wmain+0x43 [c:\users\x9090\documents\visual studio 2010\projects\vmdetector-git\vmdetector\vmdetector.c @ 25]
+		0015fd44 76ce3c45 7ffd7000 0015fd90 777137f5 VmDetector!__tmainCRTStartup+0xfe [f:\dd\vctools\crt\crtw32\startup\crt0.c @ 255]
+
+	*/
 	hPhysicalDrv = CreateFile (L"\\\\.\\PhysicalDrive0", 0,FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,OPEN_EXISTING, 0, NULL);
 	if (hPhysicalDrv != INVALID_HANDLE_VALUE)
 	{

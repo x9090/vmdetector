@@ -3,6 +3,7 @@
 #include "wmicom.h"
 #include "dbgprint.h"
 #pragma comment(lib, "wbemuuid.lib")
+#pragma warning(disable:4996)		// Disable warning C4996: '_wcslwr'
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -297,6 +298,7 @@ BOOLEAN WmiCheckWin32Drives()
 	// Step 6: --------------------------------------------------
 	// Use the IWbemServices pointer to make requests of WMI ----
 	IEnumWbemClassObject* pEnumerator = NULL;
+	DebugBreak();
 	hres = g_pSvc->ExecQuery(
 		bstr_t("WQL"), 
 		bstr_t("SELECT * FROM Win32_DiskDrive"),
@@ -318,6 +320,7 @@ BOOLEAN WmiCheckWin32Drives()
 
 	while (pEnumerator)
 	{
+		DebugBreak();
 		HRESULT hr = pEnumerator->Next(WBEM_INFINITE, 1, 
 			&pclsObj, &uReturn);
 
@@ -338,6 +341,7 @@ BOOLEAN WmiCheckWin32Drives()
 		// Get the value of property that may contain Vmware/Virtual string
 		hr = pclsObj->Get(L"Caption", 0, &vtCaptionProp, 0, 0);
 		hr = pclsObj->Get(L"Model", 0, &vtModelProp, 0, 0);
+		DebugBreak();
 		hr = pclsObj->Get(L"PNPDeviceID", 0, &vtPnPDevIdProp, 0, 0);
 		{
 			wchar_t devpropid[256] = {0};
