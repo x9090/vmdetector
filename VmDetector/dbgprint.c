@@ -34,7 +34,7 @@ void dbgprintfA(CHAR *Format, ...)
 
 #ifdef _DEBUG
 	// DEBUG message
-	fprintf(stdout, "[DEBUG] %s", buffer);
+	fprintf(stdout, "%s", buffer);
 #endif
 
 	// ERROR message

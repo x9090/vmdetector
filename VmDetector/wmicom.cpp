@@ -298,7 +298,6 @@ BOOLEAN WmiCheckWin32Drives()
 	// Step 6: --------------------------------------------------
 	// Use the IWbemServices pointer to make requests of WMI ----
 	IEnumWbemClassObject* pEnumerator = NULL;
-	DebugBreak();
 	hres = g_pSvc->ExecQuery(
 		bstr_t("WQL"), 
 		bstr_t("SELECT * FROM Win32_DiskDrive"),
@@ -320,7 +319,6 @@ BOOLEAN WmiCheckWin32Drives()
 
 	while (pEnumerator)
 	{
-		DebugBreak();
 		HRESULT hr = pEnumerator->Next(WBEM_INFINITE, 1, 
 			&pclsObj, &uReturn);
 
@@ -341,7 +339,6 @@ BOOLEAN WmiCheckWin32Drives()
 		// Get the value of property that may contain Vmware/Virtual string
 		hr = pclsObj->Get(L"Caption", 0, &vtCaptionProp, 0, 0);
 		hr = pclsObj->Get(L"Model", 0, &vtModelProp, 0, 0);
-		DebugBreak();
 		hr = pclsObj->Get(L"PNPDeviceID", 0, &vtPnPDevIdProp, 0, 0);
 		{
 			wchar_t devpropid[256] = {0};
@@ -353,7 +350,7 @@ BOOLEAN WmiCheckWin32Drives()
 			{
 				wsprintf(caption, L"%s", vtCaptionProp.pcVal);
 				dbgprintfW(L"Caption: %s\n", vtCaptionProp.bstrVal);
-				if(wcsstr(_wcslwr(caption), L"virtual") != NULL || wcsstr(caption, L"vmware") != NULL)
+				if (wcsstr(_wcslwr(caption), L"virtual") != NULL || wcsstr(caption, L"vmware") != NULL || wcsstr(caption, L"vbox") != NULL)
 					bCaption = TRUE;
 			}
 			else
@@ -364,7 +361,7 @@ BOOLEAN WmiCheckWin32Drives()
 				wsprintf(model, L"%s", vtModelProp.bstrVal);
 				dbgprintfW(L"Model: %s\n", vtModelProp.bstrVal);
 
-				if(wcsstr(_wcslwr(model), L"virtual")!= NULL || wcsstr(model, L"vmware") != NULL)
+				if (wcsstr(_wcslwr(caption), L"virtual") != NULL || wcsstr(caption, L"vmware") != NULL || wcsstr(caption, L"vbox") != NULL)
 					bModel = TRUE;
 			}
 			else
@@ -375,7 +372,7 @@ BOOLEAN WmiCheckWin32Drives()
 				wsprintf(devpropid, L"%s", vtPnPDevIdProp.bstrVal);
 				dbgprintfW(L"PNPDeviceID: %s\n", vtPnPDevIdProp.bstrVal);
 				
-				if(wcsstr(_wcslwr(devpropid), L"virtual") != NULL || wcsstr(devpropid, L"vmware") != NULL)
+				if (wcsstr(_wcslwr(caption), L"virtual") != NULL || wcsstr(caption, L"vmware") != NULL || wcsstr(caption, L"vbox") != NULL)
 					bPnpDevId = TRUE;
 			}
 			else
@@ -463,7 +460,7 @@ BOOLEAN WmiCheckWin32CDROMDrive()
 			{
 				wsprintf(caption, L"%s", vtCaptionProp.pcVal);
 				dbgprintfW(L"Caption: %s\n", vtCaptionProp.bstrVal);
-				if(wcsstr(_wcslwr(caption), L"virtual") != NULL || wcsstr(caption, L"vmware") != NULL)
+				if (wcsstr(_wcslwr(caption), L"virtual") != NULL || wcsstr(caption, L"vmware") != NULL || wcsstr(caption, L"vbox") != NULL)
 					bCaption = TRUE;
 			}
 			else
@@ -474,7 +471,7 @@ BOOLEAN WmiCheckWin32CDROMDrive()
 				wsprintf(name, L"%s", vtNameProp.bstrVal);
 				dbgprintfW(L"Name: %s\n", vtNameProp.bstrVal);
 
-				if(wcsstr(_wcslwr(name), L"virtual")!= NULL || wcsstr(name, L"vmware") != NULL)
+				if (wcsstr(_wcslwr(caption), L"virtual") != NULL || wcsstr(caption, L"vmware") != NULL || wcsstr(caption, L"vbox") != NULL)
 					bName = TRUE;
 			}
 			else
@@ -485,7 +482,7 @@ BOOLEAN WmiCheckWin32CDROMDrive()
 				wsprintf(devpropid, L"%s", vtPnPDevIdProp.bstrVal);
 				dbgprintfW(L"PNPDeviceID: %s\n", vtPnPDevIdProp.bstrVal);
 
-				if(wcsstr(_wcslwr(devpropid), L"virtual") != NULL || wcsstr(devpropid, L"vmware") != NULL)
+				if (wcsstr(_wcslwr(caption), L"virtual") != NULL || wcsstr(caption, L"vmware") != NULL || wcsstr(caption, L"vbox") != NULL)
 					bPnpDevId = TRUE;
 			}
 			else
@@ -565,7 +562,7 @@ BOOLEAN WmiCheckWin32VideoController()
 			{
 				wsprintf(caption, L"%s", vtCaptionProp.pcVal);
 				dbgprintfW(L"Caption: %s\n", vtCaptionProp.bstrVal);
-				if(wcsstr(_wcslwr(caption), L"virtual") != NULL || wcsstr(caption, L"vmware") != NULL)
+				if (wcsstr(_wcslwr(caption), L"virtual") != NULL || wcsstr(caption, L"vmware") != NULL || wcsstr(caption, L"vbox") != NULL)
 					bCaption = TRUE;
 			}
 			else

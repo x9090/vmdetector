@@ -87,6 +87,7 @@ BOOLEAN CheckCPUID()
 BOOLEAN CheckHyperV()
 {
 	CHAR cVmwareVmware[13] = "VMwareVMware";
+	CHAR cVboxVboxVbox[13] = "VboxVboxVbox";
 	CHAR strVendorId[13] = {0};
 	int *varEbx, *varEcx, *varEdx = NULL;
 	int result = FALSE;
@@ -138,6 +139,8 @@ hypervisor_bit_set:
 	}
 
 	if (strcmp(strVendorId, cVmwareVmware) == 0)
+		result = TRUE;
+	else if (strcmp(strVendorId, cVboxVboxVbox) == 0)
 		result = TRUE;
 
 	return result;

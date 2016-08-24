@@ -21,7 +21,7 @@ typedef enum RegistryKey_t{
 }RegistryKey;
 
 typedef enum RegistryKeyPatch_t{
-	PATCH_WMI_VIDEOCONTROLLER_REGKEY = 0,
+	PATCH_WMI_PCI_REGKEY = 0,
 	PATCH_WMI_DISKDRIVE_SCSI_REGKEY = 1,
 	PATCH_UNKNOWN_REGKEY
 }RegistryKeyPatchType;

@@ -10,16 +10,25 @@ CHAR **GetExclusionFileName()
 	FILE *fConf = NULL;
 	CHAR *contents = NULL;
 	CHAR szConfig[MAX_PATH] = {0};
+	CHAR szConfigPath[MAX_PATH] = { 0 };
+	CHAR szExePath[MAX_PATH] = { 0 };
+	CHAR *pExePath = NULL;
 	CHAR **procname;  
 	CHAR **tempProcname;
 	DWORD dwSize;
 	DWORD dwFileSize;
 	BOOLEAN bValid = FALSE;
 
-	fopen_s(&fConf, g_ConfigFileName, "r");
+	GetModuleFileNameA(NULL, szExePath, MAX_PATH);
+	pExePath = strrchr(szExePath, '\\');
+	*(pExePath+1) = '\0';
+	strcpy_s(szConfigPath, MAX_PATH, szExePath);
+	strcat_s(szConfigPath, MAX_PATH, g_ConfigFileName);
+
+	fopen_s(&fConf, szConfigPath, "r");
 	if (!fConf)
 	{
-		dbgprintfA(" (%s:%d): %s not found\n", __FUNCTION__, __LINE__, g_ConfigFileName);
+		dbgprintfA(" (%s:%d): \"%s\" not found\n", __FILE__, __LINE__, szConfigPath);
 		return NULL;
 	}
 
@@ -89,7 +98,7 @@ DWORD GetRdtscDefinition(VMDET_CONFIG option)
 	fopen_s(&fConf, g_ConfigFileName, "r");
 	if (!fConf)
 	{
-		dbgprintfA(" (%s:%d): %s not found\n", __FUNCTION__, __LINE__, g_ConfigFileName);
+		dbgprintfA(" (%s:%d): %s not found\n", __FILE__, __LINE__, g_ConfigFileName);
 		return -1;
 	}
 
@@ -157,17 +166,26 @@ CHAR **GetPatchRegKeysFromConfig()
 {
 	FILE *fConf = NULL;
 	CHAR *contents = NULL;
-	CHAR szConfig[MAX_PATH] = {0};
+	CHAR szConfig[MAX_PATH] = { 0 };
+	CHAR szConfigPath[MAX_PATH] = { 0 };
+	CHAR szExePath[MAX_PATH] = { 0 };
+	CHAR *pExePath = NULL;
 	CHAR **regKeys;  
 	CHAR **tempRegKeys;
 	DWORD dwSize;
 	DWORD dwFileSize;
 	BOOLEAN bValid = FALSE;
 
-	fopen_s(&fConf, g_ConfigFileName, "r");
+	GetModuleFileNameA(NULL, szExePath, MAX_PATH);
+	pExePath = strrchr(szExePath, '\\');
+	*(pExePath+1) = '\0';
+	strcpy_s(szConfigPath, MAX_PATH, szExePath);
+	strcat_s(szConfigPath, MAX_PATH, g_ConfigFileName);
+
+	fopen_s(&fConf, szConfigPath, "r");
 	if (!fConf)
 	{
-		dbgprintfA(" (%s:%d): %s not found\n", __FUNCTION__, __LINE__, g_ConfigFileName);
+		dbgprintfA(" (%s:%d): \"%s\" not found\n", __FILE__, __LINE__, szConfigPath);
 		return NULL;
 	}
 

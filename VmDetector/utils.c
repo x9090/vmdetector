@@ -36,7 +36,7 @@ VOID RebootMachine()
 {
 	IncreaseProcPriviledge("SeShutdownPrivilege");
 	if (MessageBoxW(NULL, 
-		L"The system neeed to restart to run WMI Filter properly. Do you want to restart now?",
+		L"The system need to restart to run WMI Filter properly. Do you want to restart now?",
 		L"Confirm restart",
 		MB_YESNO|MB_ICONINFORMATION) == IDYES)
 	{

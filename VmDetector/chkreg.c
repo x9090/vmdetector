@@ -73,7 +73,13 @@ BOOLEAN RestrictAccessToReg(CHAR *Key)
 		if (result == ERROR_ACCESS_DENIED)
 		{
 			// Enable the SE_TAKE_OWNERSHIP_NAME privilege.
-			IncreaseProcPriviledge("SeTakeOwnershipPrivilege");
+			result = IncreaseProcPriviledge("SeTakeOwnershipPrivilege");
+
+			if (result != ERROR_SUCCESS)
+			{
+				dbgprintfA(" (%s:%d): SeTakeOwnershipPrivilege failed\n", __FILE__, __LINE__);
+				goto CLEANUP;
+			}
 
 			// Set the owner in the object's security descriptor.
 			result = SetNamedSecurityInfoA(
@@ -541,6 +547,32 @@ BOOLEAN PatchRegistryValueData(RegistryKey Key, CHAR *szSubKey, CHAR *szValue, C
 		}
 	}
 
+	// Start replacing VBOX string from the registry data
+	{
+		char *start = strstr(szBuffer, "VBox");
+
+		if (start != NULL)
+		{
+			int offset = (int)start - (int)szBuffer;
+
+			// Replace "VBox" string
+			strncpy(szBuffer + offset, "MB0X", 4);
+		}
+	}
+
+	// Start replacing Oracle string from the registry data
+	{
+		char *start = strstr(szBuffer, "Oracle");
+
+		if (start != NULL)
+		{
+			int offset = (int)start - (int)szBuffer;
+
+			// Replace "Oracle" string
+			strncpy(szBuffer + offset, "0r@cl3", 6);
+		}
+	}
+
 	if((retnval=RegOpenKeyExA(RegKey, szSubKey, 0, KEY_READ|KEY_WRITE, &hKey)) == ERROR_SUCCESS){
 		if (RegSetValueExA(hKey, szValue, 0, Type, (unsigned char *)szBuffer, strlen(szBuffer)) == ERROR_SUCCESS)
 		{
@@ -575,7 +607,7 @@ BOOLEAN PatchRegistryValueData(RegistryKey Key, CHAR *szSubKey, CHAR *szValue, C
 	}
 	
 	if (retnval != ERROR_SUCCESS)
-		dbgprintfA(" (%s:%d): Unable to open key: 0x%x\n", __FUNCTION__, __LINE__, retnval);
+		dbgprintfA(" (%s:%d): Unable to open key: 0x%x\n", __FILE__, __LINE__, retnval);
 	
 	return bResult;
 }
@@ -666,7 +698,7 @@ BOOLEAN PatchRegistryKeyName(RegistryKey Key, WCHAR *wSubKey, WCHAR *oldName, WC
 	}
 
 	if (retnval != ERROR_SUCCESS)
-		dbgprintfA(" (%s:%d): Unable to open key: 0x%x\n", __FUNCTION__, __LINE__, retnval);
+		dbgprintfA(" (%s:%d): Unable to open key: 0x%x\n", __FILE__, __LINE__, retnval);
 
 	return bResult;
 }
@@ -695,15 +727,15 @@ BOOLEAN VMRegFindAndPatchByRegValue(RegistryKey Key, CHAR *SubKey, CHAR *Value)
 	// Prepare our registry data for comparison later
 	memcpy_s(szData, sizeof(szData), szRegData, strlen(szRegData));
 
-	// Look for VMware string and patch it if found
+	// Look for VMware/VirtualBox string and patch it if found
 	CharLowerBuffA(szData, strlen(szData));
-	if (strstr(szData, "vmware") != NULL)
+	if (strstr(szData, "vmware") != NULL || strstr(szData, "virtual") != NULL || strstr(szData, "virtualbox") != NULL || strstr(szData, "vbox") != NULL || strstr(szData, "oracle") != NULL)
 	{
 		bResult = PatchRegistryValueData(HKLM, SubKey, Value, szRegData, type);
 	}
 	else
 	{
-		bResult = TRUE;
+		bResult = FALSE;
 	}
 
 	// Empty buffer that stores a copy of our registry data
@@ -723,12 +755,13 @@ BOOLEAN VMRegFindAndPatchByRegValue(RegistryKey Key, CHAR *SubKey, CHAR *Value)
 **/
 BOOLEAN VMRegPatcher(int PatchType)
 {
-	BOOLEAN bResult = FALSE;
+	BOOLEAN bResult;
 
 	switch(PatchType)
 	{
-	case PATCH_WMI_VIDEOCONTROLLER_REGKEY:
+	case PATCH_WMI_PCI_REGKEY:
 		do{
+			bResult = FALSE;
 			CHAR **RegKeys = GetPatchRegKeysFromConfig();
 			int index = 1;
 
@@ -737,11 +770,12 @@ BOOLEAN VMRegPatcher(int PatchType)
 
 			while (*RegKeys != NULL)
 			{
-				dbgprintfA(" (%s:%d): (%d)%s\n", __FUNCTION__, __LINE__, index++, *RegKeys);
+				dbgprintfA(" (%s:%d): (%d)%s...", __FILE__, __LINE__, index++, *RegKeys);
 
 				// Continue if not PCI registry key
 				if (strstr(*RegKeys, "HKEY_LOCAL_MACHINE\\SYSTEM\\") == NULL || strstr(*RegKeys, "\\Enum\\PCI") == NULL) 
 				{
+					printf("Not supported\n");
 					RegKeys++;
 					continue;
 				}
@@ -750,28 +784,36 @@ BOOLEAN VMRegPatcher(int PatchType)
 				{
 					CHAR szData[MAX_PATH] = {0};
 					CHAR *szRegData=NULL;
-					BOOLEAN bPatch1, bPatch2;
+					BOOLEAN bPatch1, bPatch2, bPatch3;
 					DWORD type=0;
 
 					// Get "Class" registry data
 					szRegData = GetRegistryValueData(HKLM, *RegKeys+19, "Class", &type);
 
-					// Continue if not Display class
-					if (szRegData == NULL || strstr(szRegData, "Display") == NULL)
+					// Continue if not Display or System (for VBOX) class
+					if (szRegData == NULL || (strstr(szRegData, "Display") == NULL && strstr(szRegData, "System") == NULL))
 					{
+						printf("Not found\n");
 						RegKeys++;
 						continue;
 					}
 
 					free(szRegData);
-
+					
 					if (!(bPatch1=VMRegFindAndPatchByRegValue(HKLM, *RegKeys+19, "DeviceDesc")))
-						dbgprintfA(" (%s:%d): Failed to patch PCI \"DeviceDesc\"\n", __FUNCTION__, __LINE__);
-
+						dbgprintfA(" (%s:%d): Failed to patch PCI \"DeviceDesc\"\n", __FILE__, __LINE__);
+					else
+						dbgprintfA(" (%s:%d): PCI \"DeviceDesc\" patched!\n", __FILE__, __LINE__);
 					if (!(bPatch2=VMRegFindAndPatchByRegValue(HKLM, *RegKeys+19, "Mfg")))
-						dbgprintfA(" (%s:%d): Failed to patch PCI \"Mfg\"\n", __FUNCTION__, __LINE__);
+						dbgprintfA(" (%s:%d): Failed to patch PCI \"Mfg\"\n", __FILE__, __LINE__);
+					else
+						dbgprintfA(" (%s:%d): PCI \"Mfg\" patched!\n", __FILE__, __LINE__);
+					if (!(bPatch3=VMRegFindAndPatchByRegValue(HKLM, *RegKeys+19, "Service")))
+						dbgprintfA(" (%s:%d): Failed to patch PCI \"Service\"\n", __FILE__, __LINE__);
+					else
+						dbgprintfA(" (%s:%d): PCI \"Service\" patched!\n", __FILE__, __LINE__);
 
-					bResult = bPatch1&&bPatch2?TRUE:FALSE;
+					bResult = bPatch1||bPatch2||bPatch3?TRUE:FALSE;
 				}
 
 				// Next registry key
@@ -782,6 +824,7 @@ BOOLEAN VMRegPatcher(int PatchType)
 		break;
 	case PATCH_WMI_DISKDRIVE_SCSI_REGKEY:
 		do{
+			bResult = FALSE;
 			CHAR **RegKeys = GetPatchRegKeysFromConfig();
 			int index = 1;
 
@@ -790,7 +833,7 @@ BOOLEAN VMRegPatcher(int PatchType)
 
 			while (*RegKeys != NULL)
 			{
-				dbgprintfA(" (%s:%d): (%d)%s\n", __FUNCTION__, __LINE__, index++, *RegKeys);
+				dbgprintfA(" (%s:%d): (%d)%s\n", __FILE__, __LINE__, index++, *RegKeys);
 
 				// Continue if not SCSI registry key
 				if (strstr(*RegKeys, "HKEY_LOCAL_MACHINE\\SYSTEM\\") == NULL || strstr(*RegKeys, "\\Enum\\SCSI\\Disk&Ven_VMware_&Prod_VMware_Virtual_S") == NULL)
@@ -811,10 +854,10 @@ BOOLEAN VMRegPatcher(int PatchType)
 
 					// The "FriendlyName" should contain "VMware, VMware Virtual S SCSI Disk Device"
 					if (!(bPatch1 = VMRegFindAndPatchByRegValue(HKLM, szSubKey, "FriendlyName")))
-						dbgprintfA(" (%s:%d): Failed to patch SCSI \"FriendlyName\"\n", __FUNCTION__, __LINE__);
+						dbgprintfA(" (%s:%d): Failed to patch SCSI \"FriendlyName\"\n", __FILE__, __LINE__);
 
 					if (!(bPatch2 = VMRegFindAndPatchByRegValue(HKLM, szSubKey, "HardwareID")))
-						dbgprintfA(" (%s:%d): Failed to patch SCSI \"HardwareID\"\n", __FUNCTION__, __LINE__);
+						dbgprintfA(" (%s:%d): Failed to patch SCSI \"HardwareID\"\n", __FILE__, __LINE__);
 
 					// Restrict access to the target registry keys
 					CHAR szScsiChildKey[MAX_PATH] = { 0 };
@@ -824,7 +867,7 @@ BOOLEAN VMRegPatcher(int PatchType)
 
 					// Set ACL on SYSTEM\CurrentControlSet\Enum\SCSI\Disk&Ven_VMware_&Prod_VMware_Virtual_S\5&1982005&0&000000 key
 					if (!(bPatch3 = RestrictAccessToReg(szScsiChildKey)))
-						dbgprintfA(" (%s:%d): Failed to restrict access to SCSI \"%s\" (0x%x)\n", __FUNCTION__, __LINE__, szScsiChildKey, GetLastError());
+						dbgprintfA(" (%s:%d): Failed to restrict access to SCSI \"%s\" (0x%x)\n", __FILE__, __LINE__, szScsiChildKey, GetLastError());
 					
 					CHAR szScsiRootKey[MAX_PATH] = { 0 };
 					CHAR *szTempSubKey = szSubKey;
@@ -837,7 +880,7 @@ BOOLEAN VMRegPatcher(int PatchType)
 
 					// Set ACL on SYSTEM\CurrentControlSet\Enum\SCSI\Disk&Ven_VMware_&Prod_VMware_Virtual_S key
 					if (!(bPatch4 = RestrictAccessToReg(szScsiRootKey)))
-						dbgprintfA(" (%s:%d): Failed to restrict access to SCSI \"%s\" (0x%x)\n", __FUNCTION__, __LINE__, szScsiRootKey, GetLastError());
+						dbgprintfA(" (%s:%d): Failed to restrict access to SCSI \"%s\" (0x%x)\n", __FILE__, __LINE__, szScsiRootKey, GetLastError());
 
 					// Finally patch the registry key that contains the VM string
 					//DWORD dwLength = strlen(szSubKey);
@@ -847,11 +890,11 @@ BOOLEAN VMRegPatcher(int PatchType)
 					//MultiByteToWideChar(CP_THREAD_ACP, MB_PRECOMPOSED, szSubKey, dwLength, wSubKey, dwLength * 2);
 					/*if (!(bPatch3 = PatchRegistryKeyName(HKLM, L"SYSTEM\\CurrentControlSet\\Enum\\SCSI", L"Disk&Ven_VMware_&Prod_VMware_Virtual_S", L"Disk&Pen_VMw@re_&Prod_VMw@re_Virtu@l_S")) &&
 						!(bPatch4 = PatchRegistryKeyName(HKLM, L"SYSTEM\\CurrentControlSet\\Enum\\SCSI\\Disk&Pen_VMw@re_&Prod_VMw@re_Virtu@l_S", L"5&1982005&0&000000", L"5&1234567&1&1234")))
-						dbgprintfA(" (%s:%d): Failed to rename key %s\n", __FUNCTION__, __LINE__, szSubKey);*/
+						dbgprintfA(" (%s:%d): Failed to rename key %s\n", __FILE__, __LINE__, szSubKey);*/
 
 					//if (!(bPatch3 = PatchRegistryKeyName(HKLM, L"SYSTEM\\CurrentControlSet\\Enum\\SCSI\\Disk&Ven_VMware_&Prod_VMware_Virtual_S", NULL, L"Disk&Pen_VMw@re_&Prod_VMw@re_Virtu@l_S")) &&
 					//	!(bPatch4 = PatchRegistryKeyName(HKLM, L"SYSTEM\\CurrentControlSet\\Enum\\SCSI\\Disk&Ven_VMware_&Prod_VMware_Virtual_S", L"5&1982005&0&000000", L"5&1234567&1&1234")))
-					//	dbgprintfA(" (%s:%d): Failed to rename key %s\n", __FUNCTION__, __LINE__, szSubKey);
+					//	dbgprintfA(" (%s:%d): Failed to rename key %s\n", __FILE__, __LINE__, szSubKey);
 
 					bResult = bPatch1&&bPatch2&&bPatch3&&bPatch4 ? TRUE : FALSE;
 
@@ -945,6 +988,7 @@ BOOLEAN CheckVmDiskReg()
 	{
 		CharLowerBuffA(DiskName,strlen(DiskName));
 		if (strstr(DiskName, "vmware") ||
+			strstr(DiskName, "vbox") ||
 			strstr(DiskName, "virtual"))
 		{
 			free(DiskName);
@@ -970,6 +1014,7 @@ BOOLEAN CheckStorageProperty()
 		"qemu",
 		"virtual",
 		"vmware",
+		"vbox",
 		NULL
 	};
 
@@ -1069,7 +1114,7 @@ BOOLEAN CheckVmIdeReg()
 
 			memcpy_s(szSubkey, sizeof(szSubkey), *Subkeys, dwSize);
 			CharLowerBuffA(szSubkey, strlen(szSubkey));
-			if (strstr(szSubkey, "vmware") != NULL || strstr(szSubkey, "virtual") != NULL)
+			if (strstr(szSubkey, "vmware") != NULL || strstr(szSubkey, "vbox") != NULL || strstr(szSubkey, "virtual") != NULL)
 			{
 				bResult = TRUE;
 				break;
@@ -1118,7 +1163,7 @@ BOOLEAN CheckVmPartMgrReg()
 			if (type == REG_SZ || type == REG_EXPAND_SZ)
 			{
 				CharLowerBuffA(szData, strlen(szData));
-				if (strstr(szData, "vmware") != NULL || strstr(szData, "virtual") != NULL)
+				if (strstr(szData, "vmware") != NULL || strstr(szData, "vbox") != NULL || strstr(szData, "virtual") != NULL)
 				{
 					bResult = TRUE;
 					break;
@@ -1158,6 +1203,8 @@ BOOLEAN BlockAccessPartMgrReg()
 	// Set ACL on CurrentControlSet\Services\PartMgr\Enum key
 	if (RestrictAccessToReg(szPartMgrKey))
 		bResult = TRUE;
+	else
+		dbgprintfA(" (%s:%d) Failed RestrictAccessToReg to %s... (0x%x)\n", __FILE__, __LINE__, szPartMgrKey, GetLastError());
 
 	return bResult;
 }
@@ -1211,7 +1258,7 @@ BOOLEAN BlockAccessVmPciReg()
 										NULL
 									  };
 	CHAR szIdeKey[MAX_PATH] = {0};
-	BOOLEAN bResult = FALSE;
+	BOOLEAN bResult = FALSE, bFinalResult = FALSE;
 	int index = 0;
 
 	while (szListVideoControllerReg[index] != NULL)
@@ -1221,11 +1268,12 @@ BOOLEAN BlockAccessVmPciReg()
 		strcat_s(szIdeKey, MAX_PATH-1, szListVideoControllerReg[index]);
 
 		// Set ACL on the registry key
-		bResult = RestrictAccessToReg(szIdeKey);
-		dbgprintfA(" (%s:%d) Restricting access to %s... %s\n", __FUNCTION__, __LINE__, szIdeKey, ISPASSA(bResult));
+		if ((bResult = RestrictAccessToReg(szIdeKey)))
+			bFinalResult = TRUE;
+		dbgprintfA(" (%s:%d) Restricting access to %s... %s\n", __FILE__, __LINE__, szIdeKey, ISPASSA(bResult));
 
 		index++;
 	}
 
-	return bResult;
+	return bFinalResult;
 }

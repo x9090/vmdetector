@@ -229,6 +229,7 @@ int wmain(int args, WCHAR *argv[])
 		else if (!bInstallDrv && GetLastError() != ERROR_SUCCESS) 
 		{
 			wprintf(L"[-] Failed to install and load the driver \"%s\". (0x%08x)\n", SYS_DISPLAY_NAME, GetLastError());
+			system("pause");
 			return;
 		}
 	}
@@ -458,19 +459,48 @@ int wmain(int args, WCHAR *argv[])
 			
 			case 8: // WmiCheckWin32Drives failed
 
-				if (IsWindows7OrGreater(PATCH_WMI_DISKDRIVE_SCSI_REGKEY))
+				if (IsWindows7OrGreater())
 				{
-					wprintf(L"[+] Bypassing WMI Win32_DiskDrive for VMware. Patching key...");
+					wprintf(L"[+] Bypassing WMI Win32_DiskDrive... Patching key...");
 					// Note: Win32_DiskDrive, ID_PNPDeviceID is not retrieved from the registry
 					dwResult = VMRegPatcher(PATCH_WMI_DISKDRIVE_SCSI_REGKEY);
-					// TODO: Some other patch for ID_PNPDeviceID
+
+					// Fix for ID_PNPDeviceID
+					// For a generic fix, let's modify the name of SCSI symbolic link 
+					hDevObj = CreateFile(
+						SYS_DEVICE_NAME,
+						GENERIC_READ | GENERIC_WRITE,
+						FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+						OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+					if (!DeviceIoControl(
+						hDevObj,
+						IOCTL_VMDETECTORSYS_SCSI_FIX,
+						NULL, 0,
+						&dwResult, sizeof(dwResult),
+						&dwBytesReturned,
+						NULL)) wprintf(L"\n[-] Failed in operation IOCTL_VMDETECTORSYS_SCSI_FIX. (0x%08x)", GetLastError());
+					if (dwResult)
+					{
+						SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+						wprintf(L" Succeeded\n");
+						SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+					}
+					else
+					{
+						SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED | FOREGROUND_INTENSITY);
+						wprintf(L" Failed\n");
+						SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+					}
+
+					CloseHandle(hDevObj);
+					break;
 				}
 				else if (IsWindowsXPSP3OrGreater())
 				{
 					// Method 1: Manual installation via INF file
-					// Method 2: Refer to Ctrl2Cap client (PNP loade method)
+					// Method 2: Refer to Ctrl2Cap client (PNP load method)
 					// Method 3: WMI filter will attach the target device at run time, use regular Win32 API service installation method
-					wprintf(L"[+] Bypassing WMI Win32_DiskDrive for VMware. Installing WMIFilter driver (required reboot!)... ");
+					wprintf(L"[+] Bypassing WMI Win32_DiskDrive... Installing WMIFilter driver (required reboot!)... ");
 					dwResult = InstallAndStartWMIFilterDriver(VMDETECTOR_WMIFLT_DRIVER_FILE);
 
 					if (dwResult)
@@ -512,8 +542,8 @@ int wmain(int args, WCHAR *argv[])
 				{
 					BOOLEAN bResult1, bResult2;
 
-					wprintf(L"[+] Bypassing WMI Win32_VideoController for VMware... ");
-					bResult1 = VMRegPatcher(PATCH_WMI_VIDEOCONTROLLER_REGKEY);
+					wprintf(L"[+] Bypassing WMI Win32_VideoController... ");
+					bResult1 = VMRegPatcher(PATCH_WMI_PCI_REGKEY);
 					bResult2 = BlockAccessVmPciReg();
 
 					if (bResult1&&bResult2)
@@ -628,7 +658,6 @@ int wmain(int args, WCHAR *argv[])
 	//			printf("[-] Failed to stop driver. (0x%08x)\n", GetLastError());*/
 	}// End while (k < j)
 
-	//system("pause");
 	return 0;
 }
 
@@ -658,7 +687,7 @@ BOOLEAN InstallAndStartVmDetectorDriver(WCHAR *cSysDrvPath)
 			SYS_DISPLAY_NAME,
 			SERVICE_ALL_ACCESS,
 			SERVICE_KERNEL_DRIVER,
-			SERVICE_DEMAND_START,
+			SERVICE_AUTO_START,
 			SERVICE_ERROR_NORMAL,
 			cSysDrvPath,
 			NULL, NULL, NULL, NULL, NULL);
@@ -752,7 +781,7 @@ BOOLEAN InstallVmDetectorRunOnce()
 
 	GetModuleFileNameW(NULL, szModuleName, sizeof(WCHAR)*MAX_PATH);
 
-	if((retnval=RegOpenKeyExW(HKEY_CURRENT_USER, szSubKeyRunOnce, 0, KEY_READ|KEY_WRITE, &hKey)) == ERROR_SUCCESS){
+	if((retnval=RegOpenKeyExW(HKEY_LOCAL_MACHINE, szSubKeyRunOnce, 0, KEY_READ|KEY_WRITE, &hKey)) == ERROR_SUCCESS){
 		if (RegSetValueExW(hKey, szValue, 0, REG_SZ, (BYTE*)szModuleName, wcslen(szModuleName)*sizeof(WCHAR)) == ERROR_SUCCESS)
 		{
 			bResult = TRUE;
