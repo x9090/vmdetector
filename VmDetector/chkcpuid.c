@@ -87,7 +87,7 @@ BOOLEAN CheckCPUID()
 BOOLEAN CheckHyperV()
 {
 	CHAR cVmwareVmware[13] = "VMwareVMware";
-	CHAR cVboxVboxVbox[13] = "VboxVboxVbox";
+	CHAR cVboxVboxVbox[13] = "VBoxVBoxVBox";
 	CHAR strVendorId[13] = {0};
 	int *varEbx, *varEcx, *varEdx = NULL;
 	int result = FALSE;
@@ -99,12 +99,12 @@ BOOLEAN CheckHyperV()
 		mov ecx, 0
 		mov edx, 0
 		// Get bit 31 of ecx
-		cpuid
+		/*cpuid
 		cmp ecx, 0
 		jz not_hypervisor_bit_set
 		mov eax, 80000000h
 		test ecx, eax
-		jz not_hypervisor_bit_set
+		jz not_hypervisor_bit_set*/
 		mov eax, 40000000h
 		// Testing the CPUID hypervisor present bit 
 		cpuid

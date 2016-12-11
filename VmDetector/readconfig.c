@@ -90,15 +90,24 @@ DWORD GetRdtscDefinition(VMDET_CONFIG option)
 	FILE *fConf = NULL;
 	CHAR *contents = NULL;
 	CHAR szConfig[MAX_PATH] = {0};
+	CHAR szConfigPath[MAX_PATH] = { 0 };
+	CHAR szExePath[MAX_PATH] = { 0 };
+	CHAR *pExePath = NULL;
 	DWORD dwRdtscDef = -1;
 	DWORD dwSize;
 	DWORD dwFileSize;
 	BOOLEAN bValid = FALSE;
 
-	fopen_s(&fConf, g_ConfigFileName, "r");
+	GetModuleFileNameA(NULL, szExePath, MAX_PATH);
+	pExePath = strrchr(szExePath, '\\');
+	*(pExePath + 1) = '\0';
+	strcpy_s(szConfigPath, MAX_PATH, szExePath);
+	strcat_s(szConfigPath, MAX_PATH, g_ConfigFileName);
+
+	fopen_s(&fConf, szConfigPath, "r");
 	if (!fConf)
 	{
-		dbgprintfA(" (%s:%d): %s not found\n", __FILE__, __LINE__, g_ConfigFileName);
+		dbgprintfA(" (%s:%d): %s not found\n", __FILE__, __LINE__, szConfigPath);
 		return -1;
 	}
 
@@ -162,7 +171,7 @@ DWORD GetRdtscDefinition(VMDET_CONFIG option)
 	return dwRdtscDef;
 }
 
-CHAR **GetPatchRegKeysFromConfig()
+CHAR **GetPatchRegKeysFromConfig(CHAR *KeyPattern)
 {
 	FILE *fConf = NULL;
 	CHAR *contents = NULL;
@@ -175,6 +184,7 @@ CHAR **GetPatchRegKeysFromConfig()
 	DWORD dwSize;
 	DWORD dwFileSize;
 	BOOLEAN bValid = FALSE;
+    CHAR ConfigKey[MAX_BUFF] = { 0 };
 
 	GetModuleFileNameA(NULL, szExePath, MAX_PATH);
 	pExePath = strrchr(szExePath, '\\');
@@ -189,6 +199,7 @@ CHAR **GetPatchRegKeysFromConfig()
 		return NULL;
 	}
 
+    _snprintf(ConfigKey, MAX_BUFF, "%s=", KeyPattern);
 	// Get file size
 	dwFileSize = 0;
 	dwSize = 0;
@@ -219,7 +230,7 @@ CHAR **GetPatchRegKeysFromConfig()
 			else if (!bValid && strstr(szBuff, "[vmdetector_conf]") != NULL)
 				bValid = TRUE;
 			// Registry key to be patched
-			else if(strstr(szBuff, "patchregkey=") != NULL && bValid)
+            else if (strstr(szBuff, ConfigKey) != NULL && bValid)
 			{
 				CHAR *start = strrchr(szBuff, '=');
 				CHAR *end = strrchr(szBuff, '\n');

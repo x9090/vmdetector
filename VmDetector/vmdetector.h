@@ -28,6 +28,13 @@
 #define FLT_SERVICE_NAME L"wmifilter"
 #define FLT_DISPLAY_NAME L"WMI Filter Driver"
 
+#if DEBUG
+#define SYSTEM_PAUSE \
+	system("pause");
+#else
+#define SYSTEM_PAUSE \
+	__noop;
+#endif
 //////////////////////////////////////////////////////////////////////////
 // Global variables
 //////////////////////////////////////////////////////////////////////////

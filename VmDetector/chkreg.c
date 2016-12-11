@@ -1,12 +1,16 @@
 #include <windows.h>
 #include <Aclapi.h>
+#include <Setupapi.h>
 #include <Sddl.h>
+#include <Shlwapi.h>
 #include <stdio.h>
 #include "chkreg.h"
 #include "dbgprint.h"
 #include "readconfig.h"
 #include "utils.h"
 
+#pragma comment(lib, "shlwapi.lib")     // Required for StrStrI
+#pragma comment(lib, "setupapi.lib")    // Required for SetupAPI
 #pragma warning(disable:4996)
 #define MAX_KEY_LENGTH 255
 
@@ -728,8 +732,7 @@ BOOLEAN VMRegFindAndPatchByRegValue(RegistryKey Key, CHAR *SubKey, CHAR *Value)
 	memcpy_s(szData, sizeof(szData), szRegData, strlen(szRegData));
 
 	// Look for VMware/VirtualBox string and patch it if found
-	CharLowerBuffA(szData, strlen(szData));
-	if (strstr(szData, "vmware") != NULL || strstr(szData, "virtual") != NULL || strstr(szData, "virtualbox") != NULL || strstr(szData, "vbox") != NULL || strstr(szData, "oracle") != NULL)
+    if (StrStrIA(szData, "vmware") != NULL || StrStrIA(szData, "virtual") != NULL || StrStrIA(szData, "virtualbox") != NULL || StrStrIA(szData, "vbox") != NULL || StrStrIA(szData, "oracle") != NULL)
 	{
 		bResult = PatchRegistryValueData(HKLM, SubKey, Value, szRegData, type);
 	}
@@ -762,7 +765,7 @@ BOOLEAN VMRegPatcher(int PatchType)
 	case PATCH_WMI_PCI_REGKEY:
 		do{
 			bResult = FALSE;
-			CHAR **RegKeys = GetPatchRegKeysFromConfig();
+			CHAR **RegKeys = GetPatchRegKeysFromConfig("patchregkey");
 			int index = 1;
 
 			// Quit if no registry keys defined in vmdetector.ini config
@@ -825,7 +828,7 @@ BOOLEAN VMRegPatcher(int PatchType)
 	case PATCH_WMI_DISKDRIVE_SCSI_REGKEY:
 		do{
 			bResult = FALSE;
-			CHAR **RegKeys = GetPatchRegKeysFromConfig();
+			CHAR **RegKeys = GetPatchRegKeysFromConfig("patchregkey");
 			int index = 1;
 
 			// Quit if no registry keys defined in vmdetector.ini config
@@ -947,8 +950,7 @@ BOOLEAN CheckVmScsiReg()
 				memcpy_s(szData, sizeof(szData), *Data, size);
 				if (type == REG_SZ || type == REG_EXPAND_SZ)
 				{
-					CharLowerBuffA(szData, strlen(szData));
-					if (strstr(szData, "vmware") != NULL || strstr(szData, "virtual") != NULL)
+                    if (StrStrIA(szData, "vmware") != NULL || StrStrIA(szData, "virtual") != NULL)
 					{
 						// Set ACL on cPartMgrKey 
 						if (RestrictAccessToReg(szDevScsiKey))
@@ -986,10 +988,9 @@ BOOLEAN CheckVmDiskReg()
 
 	if (DiskName != NULL && type == REG_SZ)
 	{
-		CharLowerBuffA(DiskName,strlen(DiskName));
-		if (strstr(DiskName, "vmware") ||
-			strstr(DiskName, "vbox") ||
-			strstr(DiskName, "virtual"))
+        if (StrStrIA(DiskName, "vmware") ||
+            StrStrIA(DiskName, "vbox") ||
+            StrStrIA(DiskName, "virtual"))
 		{
 			free(DiskName);
 			return TRUE;
@@ -1077,10 +1078,9 @@ BOOLEAN CheckStorageProperty()
 				for(g = pos;szBuffer[g] != '\0';g++){
 					szModel[m++] = szBuffer[g];
 				}
-				CharLowerBuffA(szModel,strlen(szModel));
 				for (i = 0; i < (sizeof(szDrives)/sizeof(LPSTR)) - 1; i++ ) {
 					if (szDrives[i][0] != 0) {
-						if(strstr(szModel,szDrives[i]))
+                        if (StrStrIA(szModel, szDrives[i]))
 							return TRUE;
 					}
 				}
@@ -1088,6 +1088,50 @@ BOOLEAN CheckStorageProperty()
 		CloseHandle (hPhysicalDrv);
 	}
 	return FALSE;
+}
+
+/**
+
+    Description: Checks hard drive device name to detect one of known VM hard drives.
+    Purpose: Check VM string from device disk using SetupAPI
+             The routine is a direct copy/paste from:
+             https://github.com/gbrindisi/malware/blob/master/windows/gozi-isfb/av.c#L134
+
+**/
+BOOLEAN CheckIsVmHdd(VOID)
+{
+    HDEVINFO hDevInfo;
+    ULONG	Type, Size = 0;
+    BOOLEAN	bRet = FALSE;
+    LPSTR	pDeviceName;
+    GUID Guid = GUID_DEVCLASS_DISKDRIVE;
+
+    hDevInfo = SetupDiGetClassDevs(&Guid, NULL, NULL, DIGCF_PRESENT);
+    if (hDevInfo != INVALID_HANDLE_VALUE)
+    {
+        SP_DEVINFO_DATA DevInfo;
+        DevInfo.cbSize = sizeof(SP_DEVINFO_DATA);
+
+        if (SetupDiEnumDeviceInfo(hDevInfo, 0, &DevInfo))
+        {
+            SetupDiGetDeviceRegistryPropertyA(hDevInfo, &DevInfo, SPDRP_FRIENDLYNAME, &Type, NULL, 0, &Size);
+            if (Size && (pDeviceName = malloc(Size)))
+            {
+                if (SetupDiGetDeviceRegistryPropertyA(hDevInfo, &DevInfo, SPDRP_FRIENDLYNAME, &Type, pDeviceName, Size, &Size))
+                {
+                    dbgprintfA(" (%s:%d) Device name: %s\n", __FILE__, __LINE__, pDeviceName);
+                    if (StrStrIA(pDeviceName, "vbox") ||
+                        StrStrIA(pDeviceName, "qemu") ||
+                        StrStrIA(pDeviceName, "vmware") ||
+                        StrStrIA(pDeviceName, "virtual"))
+                        bRet = TRUE;
+                }
+                free(pDeviceName);
+            }	// if (Size && (pDeviceName = AppAlloc(Size)))
+        }	// if (SetupDiEnumDeviceInfo(hDevInfo, 0 ,&DevInfo))
+        SetupDiDestroyDeviceInfoList(hDevInfo);
+    }	// if (hDevInfo != INVALID_HANDLE_VALUE)
+    return(bRet);
 }
 
 /** 
@@ -1113,8 +1157,7 @@ BOOLEAN CheckVmIdeReg()
 			DWORD dwSize = strlen(*Subkeys);
 
 			memcpy_s(szSubkey, sizeof(szSubkey), *Subkeys, dwSize);
-			CharLowerBuffA(szSubkey, strlen(szSubkey));
-			if (strstr(szSubkey, "vmware") != NULL || strstr(szSubkey, "vbox") != NULL || strstr(szSubkey, "virtual") != NULL)
+            if (StrStrIA(szSubkey, "vmware") != NULL || StrStrIA(szSubkey, "vbox") != NULL || StrStrIA(szSubkey, "virtual") != NULL)
 			{
 				bResult = TRUE;
 				break;
@@ -1162,8 +1205,7 @@ BOOLEAN CheckVmPartMgrReg()
 			memcpy_s(szData, sizeof(szData), *Data, size);
 			if (type == REG_SZ || type == REG_EXPAND_SZ)
 			{
-				CharLowerBuffA(szData, strlen(szData));
-				if (strstr(szData, "vmware") != NULL || strstr(szData, "vbox") != NULL || strstr(szData, "virtual") != NULL)
+                if (StrStrIA(szData, "vmware") != NULL || StrStrIA(szData, "vbox") != NULL || StrStrIA(szData, "virtual") != NULL)
 				{
 					bResult = TRUE;
 					break;

@@ -266,6 +266,8 @@ BOOLEAN WmiCheckWin32BaseBoard()
 				dbgprintfW(L"\nProduct: %s\n", vtProduct.bstrVal);
 				if(wcsstr(_wcslwr(Product), L"440bx desktop reference platform") != NULL)
 					bProduct = TRUE;
+				else if (wcsstr(_wcslwr(Product), L"virtualbox") != NULL)
+					bProduct = TRUE;
 			}
 			else
 				dbgprintfW(L"\nProduct: <empty>\n");

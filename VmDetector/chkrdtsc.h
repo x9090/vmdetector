@@ -16,3 +16,5 @@ static int g_RDTSC_CONSTANT = 10;
 // Function prototype
 //////////////////////////////////////////////////////////////////////////
 BOOLEAN CheckRTDSC();
+BOOLEAN CheckRDTSCHookUsingHeuristic();
+BOOLEAN PassRDTSCUsingAPIHeuristic();

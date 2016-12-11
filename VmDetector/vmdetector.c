@@ -222,7 +222,8 @@ int wmain(int args, WCHAR *argv[])
 		// Install VmDetectorSys driver
 		bInstallDrv = InstallAndStartVmDetectorDriver(VMDETECTOR_SYSTEM_DRIVER_FILE);
 
-		if (!bInstallDrv && GetLastError() == ERROR_SERVICE_ALREADY_RUNNING) 
+        // With CmRegisterCallback installed, we will get ERROR_ACCESS_DENIED
+		if (!bInstallDrv && GetLastError() == ERROR_SERVICE_ALREADY_RUNNING || GetLastError() == ERROR_ACCESS_DENIED) 
 			wprintf(L"[+] The service \"%s\" was already started and running.\n", SYS_SERVICE_NAME);
 		else if (!bInstallDrv && GetLastError() == ERROR_SERVICE_MARKED_FOR_DELETE)
 			wprintf(L"[+] The service \"%s\" was already marked for deletion.\n", SYS_SERVICE_NAME);
@@ -315,7 +316,7 @@ int wmain(int args, WCHAR *argv[])
 							if (!DeviceIoControl(
 								hDevObj, 
 								IOCTL_VMDETECTORSYS_SEND_FN_EXCLUSION, 
-								*whitelist, strlen(*whitelist), 
+								*whitelist, strlen(*whitelist)+1, 
 								&dwResult, sizeof(dwResult),
 								&dwBytesReturned, 
 								NULL)) wprintf(L"\n[-] Failed in operation IOCTL_VMDETECTORSYS_SEND_FN_EXCLUSION when sending file name: %s. (0x%08x)\n", GetLastError(), *whitelist);
@@ -657,7 +658,8 @@ int wmain(int args, WCHAR *argv[])
 	//		if (!StopVmDetectorDriver())
 	//			printf("[-] Failed to stop driver. (0x%08x)\n", GetLastError());*/
 	}// End while (k < j)
-
+	//SYSTEM_PAUSE;
+	system("pause");
 	return 0;
 }
 
