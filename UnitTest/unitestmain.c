@@ -90,8 +90,21 @@ void wmain()
 	/* ============================================================ */
 	/* Test case #5: Check number of CPU cores
 	/* ============================================================ */
-	CheckCPUCores();
-	printf("Number of CPU cores: %d\n", g_NumberOfProcessors);
+	//CheckCPUCores();
+	//printf("Number of CPU cores: %d\n", g_NumberOfProcessors);
 
+    /* ============================================================ */
+    /* Test case #6: Check VM HDD using setupapi
+    /* ============================================================ */
+    //BOOL bIsVmHdd = CheckIsVmHdd();
+    //printf("Running in virtual machine? %s", bIsVmHdd ? "TRUE" : "FALSE");
+
+    /* ============================================================ */
+    /* Test case #7: RDTSC hook check?
+    /* ============================================================ */
+    printf("RDTSC hook detection using heuristic #1 (GetProcessHeap & CloseHandle interval)? %s\n", PassRDTSCUsingAPIHeuristic() ? "FALSE" : "TRUE");
+    printf("RDTSC hook detection using heuristic #2 (GetOEMCP & CloseHandle interval)? %s\n", CheckRDTSCHookUsingHeuristic() ? "TRUE" : "FALSE");
+
+    system("pause");
 	return;
 }
