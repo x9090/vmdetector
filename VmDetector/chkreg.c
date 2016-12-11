@@ -778,7 +778,6 @@ BOOLEAN VMRegPatcher(int PatchType)
 				// Continue if not PCI registry key
 				if (strstr(*RegKeys, "HKEY_LOCAL_MACHINE\\SYSTEM\\") == NULL || strstr(*RegKeys, "\\Enum\\PCI") == NULL) 
 				{
-					printf("Not supported\n");
 					RegKeys++;
 					continue;
 				}

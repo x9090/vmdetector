@@ -211,6 +211,29 @@ int wmain(int args, WCHAR *argv[])
 	}
 	i++;
 
+	/* CASE 12 */
+	wprintf(L"[%d] Advanced RTDSC hooks detection: ", i);
+	BOOLEAN bDetectHeuristic1 = CheckRDTSCHookUsingHeuristic();
+	BOOLEAN bPassedHeuristic2 = PassRDTSCUsingAPIHeuristic();
+	if (bDetectHeuristic1 || !bPassedHeuristic2)
+	{
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED | FOREGROUND_INTENSITY);
+		wprintf(L"Failed ->");
+		if (bDetectHeuristic1)
+			wprintf(L"1 ");
+		if (!bPassedHeuristic2)
+			wprintf(L"2 ");
+		wprintf(L"\n");
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+	}
+	else
+	{
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+		wprintf(L"Passed\n");
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+	}
+	i++;
+
 	// WMI cleanup
 	WmiCleanup();
 
@@ -464,7 +487,7 @@ int wmain(int args, WCHAR *argv[])
 				{
 					wprintf(L"[+] Bypassing WMI Win32_DiskDrive... Patching key...");
 					// Note: Win32_DiskDrive, ID_PNPDeviceID is not retrieved from the registry
-					dwResult = VMRegPatcher(PATCH_WMI_DISKDRIVE_SCSI_REGKEY);
+					//dwResult = VMRegPatcher(PATCH_WMI_DISKDRIVE_SCSI_REGKEY);
 
 					// Fix for ID_PNPDeviceID
 					// For a generic fix, let's modify the name of SCSI symbolic link 
